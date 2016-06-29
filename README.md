@@ -47,7 +47,7 @@ username=+15551234567
 recipient=+15559999999
 ```
 
-where `username` is the signal username (phone number) to send from, and
+where the username is the signal username (phone number) to send from, and
 recipient is the signal username to send the token to.
 Multiple recipients can be specified on their own lines.
 Empty lines and lines that begin with `#` are ignored.
