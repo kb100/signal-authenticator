@@ -1,3 +1,20 @@
+/*                                                                                                                                                                                                
+ * pam_signal_authenticator.c 
+ * Copyright (C) 2016 James Murphy 
+ *                                                                              
+ * This program is free software: you can redistribute it and/or modify         
+ * it under the terms of the GNU General Public License as published by         
+ * the Free Software Foundation, version 2 of the License.
+ *                                                                              
+ * This program is distributed in the hope that it will be useful,              
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of               
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+ * GNU General Public License for more details.                                 
+ *                                                                              
+ * You should have received a copy of the GNU General Public License            
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.        
+ */  
+
 #define PAM_SH_ACCOUNT
 #define PAM_SH_AUTH
 #define PAM_SH_PASSWORD
@@ -22,8 +39,8 @@
 #define CONFIG_FILE ".signal_authenticator"
 #define ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyz"
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
-#define SIGNAL_PROG "/usr/local/bin/signal-cli"
 #define SIGNAL_PROG_LEN ((sizeof(SIGNAL_PROG)/sizeof(SIGNAL_PROG[0]))-1)
+
 
 // log_message function ripped from google-authenticator
 // https://github.com/google/google-authenticator
@@ -167,21 +184,13 @@ bool looks_like_phone_number(const char *str) {
     return true;
 }
 
-bool looks_like_signal_prog(const char *str) {
-    return strncmp(str, SIGNAL_PROG, SIGNAL_PROG_LEN) == 0;
-}
-
 int build_signal_command(const char *config_filename, const char *token, 
         char signal_cmd_buf[MAX_BUF_SIZE], int argc, const char **argv) {
     if (argc != 1) {
         return PAM_AUTH_ERR;
     }
     
-    // argv[0] should be signal binary chosen by admin, not user
-    const char* signal_prog = argv[0];
-    if (!looks_like_signal_prog(signal_prog)){
-        return PAM_AUTH_ERR;
-    }
+    const char *signal_prog = SIGNAL_PROG;
 
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
