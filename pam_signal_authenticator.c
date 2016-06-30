@@ -185,10 +185,7 @@ bool looks_like_phone_number(const char *str) {
 }
 
 int build_signal_command(const char *config_filename, const char *token, 
-        char signal_cmd_buf[MAX_BUF_SIZE], int argc, const char **argv) {
-    if (argc != 1) {
-        return PAM_AUTH_ERR;
-    }
+        char signal_cmd_buf[MAX_BUF_SIZE]) {
     
     // see makefile for how SIGNAL_PROG gets expanded
     const char *signal_prog = SIGNAL_PROG;
@@ -359,6 +356,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     //determine the user
     const char *user = NULL;
     if ((ret = get_user(pamh, &user)) != PAM_SUCCESS) {
+        log_message(LOG_ERR, pamh, "failed to get user");
         return ret;
     }
 
@@ -368,6 +366,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char passdw_char_buf[MAX_BUF_SIZE] = {0};
     ret = getpwnam_r(user, &pw_s, passdw_char_buf, sizeof(passdw_char_buf), &pw);
     if (ret != 0 || pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] != '/') {
+        log_message(LOG_ERR, pamh, "failed to get uid or gid");
         return PAM_AUTH_ERR;
     }
     const char *home_dir = pw->pw_dir;
@@ -377,11 +376,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     // check that user wants 2 factor authentication
     char config_filename_buf[MAX_BUF_SIZE] = {0};
     if (get_2fa_config_filename(home_dir, config_filename_buf) != PAM_SUCCESS) {
+        log_message(LOG_ERR, pamh, "failed to get config filename");
         return NULL_FAILURE;
     }
 
     const char *config_filename = config_filename_buf;
     if (!config_exists_permissions_good(uid, gid, config_filename)) {
+        log_message(LOG_ERR, pamh, "config doesnt exist or bad permissions");
         return NULL_FAILURE;
     }
 
@@ -392,18 +393,21 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     // from here on failures should err on the side of denying access
 
     if ((ret = drop_privileges(uid, gid)) != PAM_SUCCESS ) {
+        log_message(LOG_ERR, pamh, "failed to drop privileges");
         return ret;
     }
 
     char token_buf[TOKEN_LEN+1] = {0};
     if ((ret = generate_random_token(token_buf)) != PAM_SUCCESS) {
+        log_message(LOG_ERR, pamh, "failed to generate random token");
         return ret;
     }
     const char *token = token_buf;
 
     char signal_cmd_buf[MAX_BUF_SIZE] = {0};
-    if ((ret = build_signal_command(config_filename, token, signal_cmd_buf, argc, argv)) 
+    if ((ret = build_signal_command(config_filename, token, signal_cmd_buf)) 
             != PAM_SUCCESS) {
+        log_message(LOG_ERR, pamh, "failed to build signal command");
         return ret;
     }
     const char *signal_cmd = signal_cmd_buf;
@@ -411,14 +415,17 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char response_buf[MAX_BUF_SIZE] = {0};
     if (send_signal_msg_and_wait_for_response(pamh, flags, signal_cmd,
                 response_buf) != PAM_SUCCESS) {
+        log_message(LOG_ERR, pamh, "failed to send signal message or get response");
         return PAM_AUTH_ERR;
     }
     const char *response = response_buf;
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
+        log_message(LOG_ERR, pamh, "incorrect token");
         return PAM_AUTH_ERR;
     }
 
+    log_message(LOG_INFO, pamh, "success");
     return PAM_SUCCESS;
 }
 
