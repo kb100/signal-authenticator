@@ -10,11 +10,11 @@ This project is HIGHLY EXPERIMENTAL (pull requests welcome), has never been audi
 has been minimally tested, but does seem to work. DO NOT USE unless you understand
 the risks. That said, it works ;)
 
-At present, signal-authenticator does not implement standard flags/PAM conventions
-like passing nullok
-(will be implemented in the future).
-It works on an opt in basis.
-If `.signal_authenticator` is found in a user's home (even if invalid) it assumes the user has opted in.
+At present, signal-authenticator accepts the `nullok` and `nonull` options
+to indicate whether or not signal authentication is done on an opt in basis,
+or whether it is required.
+If `.signal_authenticator` is found in a user's home (even if invalid) 
+it assumes the user has opted in.
 
 In order to require public key authentication + allow users to opt in to two-factor authentication,
 the important options for `/etc/ssh/sshd_config` are
@@ -35,7 +35,7 @@ and for `/etc/pam.d/sshd`
 # comment out this common-auth line, this will ask for a passphrase even though
 # we have disabled PasswordAuthentication
 # @include common-auth
-auth    required        pam_permit.so
+auth    required        pam_permit.so nullok
 auth    required        pam_signal_authenticator.so
 ```
 
