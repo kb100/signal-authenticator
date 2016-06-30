@@ -301,40 +301,36 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, int flags,
     }
 
     // these guys will be used by converse()
-	struct pam_message msg[1];
+    struct pam_message msg[1];
     struct pam_message *pmsg[1];
-	struct pam_response *resp;
+    struct pam_response *resp;
 
     // setting up conversation call prompting for one-time code
     // this is what will be seen on your ssh prompt
-	pmsg[0] = &msg[0];
-	msg[0].msg_style = PAM_PROMPT_ECHO_ON;
-	msg[0].msg = "1-time code: ";
-	resp = NULL;
-	if ((ret = converse(pamh, 1 , pmsg, &resp)) != PAM_SUCCESS) {
-		// if this function fails, make sure that 
+    pmsg[0] = &msg[0];
+    msg[0].msg_style = PAM_PROMPT_ECHO_ON;
+    msg[0].msg = "1-time code: ";
+    resp = NULL;
+    if ((ret = converse(pamh, 1 , pmsg, &resp)) != PAM_SUCCESS) {
+        // if this function fails, make sure that 
         // ChallengeResponseAuthentication in sshd_config is set to yes
-		return ret;
-	}
+        return ret;
+    }
 
     // retrieving user input
-	if(resp) {
-		if ((flags & PAM_DISALLOW_NULL_AUTHTOK) && resp[0].resp == NULL) {
+    if(resp) {
+        if (resp[0].resp == NULL) {
             free(resp);
             return PAM_AUTH_ERR;
-		}
-        else if (resp[0].resp == NULL) {
-            // is null authtok really ever ok?
-            return PAM_SUCCESS;
         }
         ret = snprintf(response_buf, sizeof(char[MAX_BUF_SIZE]), "%s", resp[0].resp);
-		resp[0].resp = NULL; 		  				  
+        resp[0].resp = NULL; 		  				  
         if (ret < 0 || (size_t)ret >= MAX_BUF_SIZE){
             return PAM_AUTH_ERR;
         }
     } 
     else {
-		return PAM_CONV_ERR;
+        return PAM_CONV_ERR;
     }
     return PAM_SUCCESS;
 }
@@ -343,6 +339,22 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, int flags,
 /* PAM entry point for authentication verification */
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     int ret;
+
+    bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
+
+    while (argc > 0) {
+        char *arg = *argv;
+        if (strcmp(arg, "nullok") == 0) {
+            nullok = true;
+        }
+        else if (strcmp(arg, "nonull") == 0) {
+            nullok = false;
+        }
+        argc--;
+        argv++;
+    }
+
+    int NULL_FAILURE = nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
     //determine the user
     const char *user = NULL;
@@ -364,20 +376,20 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     // check that user wants 2 factor authentication
     char config_filename_buf[MAX_BUF_SIZE] = {0};
-    if ((ret = get_2fa_config_filename(home_dir, config_filename_buf)) != PAM_SUCCESS) {
-        return ret;
+    if (get_2fa_config_filename(home_dir, config_filename_buf) != PAM_SUCCESS) {
+        return NULL_FAILURE;
     }
 
     const char *config_filename = config_filename_buf;
     if (!config_exists_permissions_good(uid, gid, config_filename)) {
-        // this is opt-in for users
-        // if we don't find a config assume they haven't opted in
-        return PAM_SUCCESS;
+        return NULL_FAILURE;
     }
 
-    // at this point we know the user intends to use 2fa
-    // (though they may still have an invalid config file)
-    // failures should err on the side of denying access
+    // at this point we know the user must do 2fa,
+    // they either opted in by putting the config file where it should be
+    // or the sysadmin requires 2fa
+    // (though the user may still have an invalid config file)
+    // from here on failures should err on the side of denying access
 
     if ((ret = drop_privileges(uid, gid)) != PAM_SUCCESS ) {
         return ret;
