@@ -123,6 +123,7 @@ Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 
 ## Something didn't work?
 
+First run `make check-configs` and see if everything looks okay.
 If something isn't working create an issue on the issues page and let me know
 what's happening.
 Errors are logged in your system logs using syslog.
