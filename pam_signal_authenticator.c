@@ -339,6 +339,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, int flags,
     return PAM_SUCCESS;
 }
 
+// This is the entry point, think of it as main()
 /* PAM entry point for authentication verification */
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     int ret;
