@@ -343,7 +343,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
 
     while (argc > 0) {
-        char *arg = *argv;
+        const char *arg = *argv;
         if (strcmp(arg, "nullok") == 0) {
             nullok = true;
         }
