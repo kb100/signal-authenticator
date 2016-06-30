@@ -129,15 +129,18 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
 
 int config_exists_permissions_good(uid_t uid, gid_t gid,
         const char *config_filename) {
-      struct stat s = {0};
-      int result = stat(config_filename, &s);
-      if (result < 0) {/* if file does not exist or something else fails */
+    struct stat s = {0};
+    int result = stat(config_filename, &s);
+    if (result < 0) {/* if file does not exist or something else fails */
         return false;
-      }
-      if (s.st_uid == uid && s.st_gid == gid) { /* if uid and gid match */
-          return true;
-      }
-      return false;
+    }
+    if (s.st_uid != uid || s.st_gid != gid) {
+        return false;
+    }
+    if (S_ISDIR(s.st_mode)) {
+        return false;
+    }
+    return true;
 }
 
 int drop_privileges(uid_t uid, gid_t gid) {
