@@ -190,6 +190,7 @@ int build_signal_command(const char *config_filename, const char *token,
         return PAM_AUTH_ERR;
     }
     
+    // see makefile for how SIGNAL_PROG gets expanded
     const char *signal_prog = SIGNAL_PROG;
 
     FILE *config_fp = fopen(config_filename, "r");
