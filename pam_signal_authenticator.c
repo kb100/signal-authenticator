@@ -127,18 +127,28 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     return PAM_SUCCESS;
 }
 
-int config_exists_permissions_good(uid_t uid, gid_t gid,
-        const char *config_filename) {
+int config_exists_permissions_good(pam_handle_t *pamh, uid_t uid, gid_t gid,
+        const char *config_filename, bool strict_permissions) {
     struct stat s = {0};
     int result = stat(config_filename, &s);
     if (result < 0) {/* if file does not exist or something else fails */
         return false;
     }
-    if (s.st_uid != uid || s.st_gid != gid) {
+    if (S_ISDIR(s.st_mode)) {
+        log_message(LOG_ERR, pamh, "config is a directory instead of a file");
         return false;
     }
-    if (S_ISDIR(s.st_mode)) {
-        return false;
+    if (strict_permissions) {
+        if (s.st_uid != uid || s.st_gid != gid) {
+            log_message(LOG_ERR, pamh, 
+                    "User uid=%d, gid=%d, but config uid=%d, gid=%d",
+                    uid, gid, s.st_uid, s.st_gid);
+            return false;
+        }
+        if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
+            log_message(LOG_ERR, pamh, "config has bad permissions, try chmod o-rwx");
+            return false;
+        }
     }
     return true;
 }
@@ -341,6 +351,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     int ret;
 
     bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
+    bool strict_permissions = true;
 
     while (argc > 0) {
         const char *arg = *argv;
@@ -349,6 +360,9 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         }
         else if (strcmp(arg, "nonull") == 0) {
             nullok = false;
+        }
+        else if (strcmp(arg, "nostrictpermissions") == 0) {
+            strict_permissions = false;
         }
         argc--;
         argv++;
@@ -384,8 +398,8 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     }
 
     const char *config_filename = config_filename_buf;
-    if (!config_exists_permissions_good(uid, gid, config_filename)) {
-        log_message(LOG_ERR, pamh, "config doesnt exist or bad permissions");
+    if (!config_exists_permissions_good(pamh, uid, gid, config_filename,
+                strict_permissions)) {
         return NULL_FAILURE;
     }
 

@@ -62,6 +62,16 @@ Multiple recipients can be specified on their own lines.
 Empty lines and lines that begin with `#` are ignored.
 Do not include extra spaces anywhere on the line.
 
+Since phone numbers are not necessarily public information, 
+unless the `nostrictpermissions` option is passed to `pam_signal_authenticator.so`,
+a user must own their `.signal_authenticator` file
+and that the file is not allowed to be read by other users:
+
+```
+chown user:user ~/.signal_authenticator
+chmod o-rwx ~/.signal_authenticator
+```
+
 Get the build dependencies:
 
 ```
