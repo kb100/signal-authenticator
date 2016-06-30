@@ -20,6 +20,10 @@ In order to require public key authentication + allow users to opt in to two-fac
 the important options for `/etc/ssh/sshd_config` are
 
 ```
+# ... other options
+
+# If you want to make sure it works before going live only listen to localhost
+# ListenAddress 127.0.0.1
 AuthenticationMethods publickey,keyboard-interactive:pam
 RSAAuthentication yes
 PubkeyAuthentication yes
@@ -38,6 +42,11 @@ and for `/etc/pam.d/sshd`
 auth    required        pam_permit.so nullok
 auth    required        pam_signal_authenticator.so
 ```
+
+Note: PAM config files are are more like scripts,
+they are executed in order so make sure you put
+those two lines exactly where the common-auth line used to be (near the top),
+otherwise you may allow allow a user access before authenticating them (BAD!).
 
 To opt in, a user should create a file `.signal_authenticator` in their home directory
 with contents
@@ -96,6 +105,16 @@ No mail.
 Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
+
+## Something didn't work?
+
+If something isn't working create an issue on the issues page and let me know
+what's happening.
+Errors are logged in your system logs using syslog.
+If your sshd config has `SyslogFacility AUTH` (this is the default on
+debian, e.g.) then the right log is probably `/var/log/auth`, 
+but it may also be `/var/log/syslog` depending on your system.
+You can also access logs using `sudo journalctl` if you are using systemd.
 
 ## Hacking
 
