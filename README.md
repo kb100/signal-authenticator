@@ -80,8 +80,8 @@ chmod o-rwx ~/.signal_authenticator
 Get the build dependencies:
 
 ```
-apt-get update
-apt-get install build-essential libpam0g-dev
+sudo apt-get update
+sudo apt-get install build-essential libpam0g-dev
 ```
 
 then
