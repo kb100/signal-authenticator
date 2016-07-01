@@ -70,7 +70,7 @@ Do not include extra spaces anywhere on the line.
 Since phone numbers are not necessarily public information, 
 unless the `nostrictpermissions` option is passed to `pam_signal_authenticator.so`,
 a user must own their `.signal_authenticator` file
-and that the file is not allowed to be read by other users:
+and the file is not allowed to be read by other users:
 
 ```
 chown user:user ~/.signal_authenticator
