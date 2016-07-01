@@ -286,10 +286,11 @@ int build_signal_command(const char *config_filename, const char *token,
 /* this function is ripped from pam_unix/support.c, it lets us do IO via PAM */
 int converse(pam_handle_t *pamh, int nargs, struct pam_message **message, 
         struct pam_response **response) {
-	int ret;
+
+    // as per pam_get_item docs, do not free conv
 	struct pam_conv *conv;
 
-	ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv); 
+	int ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv); 
 	if (ret == PAM_SUCCESS) {
 		ret = conv->conv(nargs, (const struct pam_message **) message, 
                 response, conv->appdata_ptr);
@@ -334,7 +335,10 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, int flags,
             return PAM_AUTH_ERR;
         }
         ret = snprintf(response_buf, sizeof(char[MAX_BUF_SIZE]), "%s", resp[0].resp);
-        resp[0].resp = NULL; 		  				  
+        memset(resp[0].resp, 0, strlen(resp[0].resp) * sizeof(char));
+        free(resp[0].resp); 
+        resp[0].resp = NULL;
+        free(resp);
         if (ret < 0 || (size_t)ret >= MAX_BUF_SIZE){
             return PAM_AUTH_ERR;
         }
