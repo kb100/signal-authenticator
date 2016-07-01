@@ -54,7 +54,10 @@ check-configs:
 		|| echo "Need to chown id -u -n):$(shell id -g -n) ~/.signal_authenticator"
 	@stat ~/.signal_authenticator | grep -q "Gid:[[:space:]]*([[:space:]]*$(shell id -g)/" \
 		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
-
+	@grep -q "^username=+[0-9]\\+" ~/.signal_authenticator \
+		|| echo "username not found in ~/.signal_authenticator, watch out for stray spaces"
+	@grep -q "^recipient=+[0-9]\\+" ~/.signal_authenticator \
+		|| echo "recipient not found in ~/.signal_authenticator, watch out for stray spaces"
 clean:
 	rm -f pam_signal_authenticator.so
 
