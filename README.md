@@ -121,6 +121,30 @@ Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
+## Hardening on multi-user systems
+
+The default behavior of Linux is extremely permissive and allows any user to see
+all processes run by another user.
+In particular, other users on the system you are logging into can see
+your authentication tokens.
+Fortunately, the kernel has an option called `hidepid` to restrict user access
+to the proc filesystem. The option `hidepid=0` is the default permissive behavior,
+`hidepid=1` restricts users from reading other users proc files, and `hidepid=2`
+additionally makes aforementioned proc files invisible to non root users.
+For more information see `man proc`.
+
+To enable the `hidepid` option on boot, add the following to `/etc/fstab`
+
+```
+proc    /proc   proc   defaults,hidepid=2 0   0
+```
+
+To temporarily test the `hidepid` option,
+
+```
+sudo mount -o remount,rw,hidepid=2 /proc
+```
+
 ## Something didn't work?
 
 First run `make check-configs` and see if everything looks okay.
