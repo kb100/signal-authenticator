@@ -434,12 +434,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     const char *signal_cmd = signal_cmd_buf;
 
     char response_buf[MAX_BUF_SIZE] = {0};
-    if (send_signal_msg_and_wait_for_response(pamh, flags, signal_cmd,
-                response_buf) != PAM_SUCCESS) {
+    ret = send_signal_msg_and_wait_for_response(pamh, flags, signal_cmd, response_buf); 
+    if (ret != PAM_SUCCESS) {
         log_message(LOG_ERR, pamh, "failed to send signal message or get response");
         return PAM_AUTH_ERR;
     }
     const char *response = response_buf;
+
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
         log_message(LOG_ERR, pamh, "incorrect token");
