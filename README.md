@@ -3,17 +3,11 @@
 PAM module for two-factor authentication through [signal](https://github.com/WhisperSystems/Signal-Android).
 Depends on [signal-cli](https://github.com/AsamK/signal-cli).
 Install signal-cli and register with a google voice number before attempting
-to use signal-authenticator. Note: when installing signal-cli, make sure
-that you copy both the bin and lib directories, e.g.
-
-```
-cp build/install/signal-cli/bin/signal-cli /usr/local/bin/signal-cli
-cp -r build/install/signal-cli/lib /usr/local/lib/signal-cli/
-```
+to use signal-authenticator.
 
 This project is HIGHLY EXPERIMENTAL (pull requests welcome), has never been audited,
-has been minimally tested, but does seem to work. DO NOT USE unless you understand
-the risks. That said, it works ;)
+has been minimally tested. DO NOT USE unless you understand the risks.
+That said, it works ;)
 
 At present, signal-authenticator accepts the `nullok` and `nonull` options
 to indicate whether or not signal authentication is done on an opt in basis,
