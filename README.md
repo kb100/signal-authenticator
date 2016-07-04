@@ -38,8 +38,8 @@ and for `/etc/pam.d/sshd`
 # comment out this common-auth line, this will ask for a passphrase even though
 # we have disabled PasswordAuthentication
 # @include common-auth
-auth    required        pam_permit.so nullok
-auth    required        pam_signal_authenticator.so
+auth    required        pam_permit.so 
+auth    required        pam_signal_authenticator.so nullok
 ```
 
 Note: PAM config files are are more like scripts,
