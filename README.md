@@ -152,8 +152,7 @@ You can also access logs using `sudo journalctl` if you are using systemd.
 
 ## Hacking
 
-The `log_message` function is ripped from the google-authenticator project.
-It is very useful for testing, use like
+The `pam_syslog` function is useful for testing,
 
 ```
 log_message(LOG_INFO, "%s %d", "printf like formatting", 7);

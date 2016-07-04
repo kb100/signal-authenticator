@@ -43,51 +43,6 @@
 #define SIGNAL_PROG_LEN ((sizeof(SIGNAL_PROG)/sizeof(SIGNAL_PROG[0]))-1)
 
 
-// log_message function ripped from google-authenticator
-// https://github.com/google/google-authenticator
-// which came with the following license/copyright notice
-//
-// PAM module for two-factor authentication.
-//
-// Copyright 2010 Google Inc.
-// Author: Markus Gutschke
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-void log_message(int priority, pam_handle_t *pamh,
-                        const char *format, ...) {
-    char *service = NULL;
-    if (pamh) {
-        pam_get_item(pamh, PAM_SERVICE, (void *)&service);
-    }
-    if (!service) {
-        service = "";
-    }
-    char logname[80];
-    snprintf(logname, sizeof(logname), "%s(" MODULE_NAME ")", service);
-
-    va_list args;
-    va_start(args, format);
-    openlog(logname, LOG_CONS | LOG_PID, LOG_AUTHPRIV);
-    vsyslog(priority, format, args);
-    closelog();
-    va_end(args);
-
-    if (priority == LOG_EMERG) {
-        // Something really bad happened. There is no way we can proceed safely.
-        _exit(1);
-    }
-}
-
 /* PAM entry point for session creation */
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     return PAM_IGNORE;
@@ -136,18 +91,18 @@ int config_exists_permissions_good(pam_handle_t *pamh, uid_t uid, gid_t gid,
         return false;
     }
     if (S_ISDIR(s.st_mode)) {
-        log_message(LOG_ERR, pamh, "config is a directory instead of a file");
+        pam_syslog(pamh, LOG_ERR, "config is a directory instead of a file");
         return false;
     }
     if (strict_permissions) {
         if (s.st_uid != uid || s.st_gid != gid) {
-            log_message(LOG_ERR, pamh, 
+            pam_syslog(pamh, LOG_ERR, 
                     "User uid=%d, gid=%d, but config uid=%d, gid=%d",
                     uid, gid, s.st_uid, s.st_gid);
             return false;
         }
         if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-            log_message(LOG_ERR, pamh, "config has bad permissions, try chmod o-rwx");
+            pam_syslog(pamh, LOG_ERR, "config has bad permissions, try chmod o-rwx");
             return false;
         }
     }
@@ -377,7 +332,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     //determine the user
     const char *user = NULL;
     if ((ret = get_user(pamh, &user)) != PAM_SUCCESS) {
-        log_message(LOG_ERR, pamh, "failed to get user");
+        pam_syslog(pamh, LOG_ERR, "failed to get user");
         return ret;
     }
 
@@ -387,7 +342,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char passdw_char_buf[MAX_BUF_SIZE] = {0};
     ret = getpwnam_r(user, &pw_s, passdw_char_buf, sizeof(passdw_char_buf), &pw);
     if (ret != 0 || pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] != '/') {
-        log_message(LOG_ERR, pamh, "failed to get uid or gid");
+        pam_syslog(pamh, LOG_ERR, "failed to get uid or gid");
         return PAM_AUTH_ERR;
     }
     const char *home_dir = pw->pw_dir;
@@ -397,7 +352,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     // check that user wants 2 factor authentication
     char config_filename_buf[MAX_BUF_SIZE] = {0};
     if (get_2fa_config_filename(home_dir, config_filename_buf) != PAM_SUCCESS) {
-        log_message(LOG_ERR, pamh, "failed to get config filename");
+        pam_syslog(pamh, LOG_ERR, "failed to get config filename");
         goto null_failure;
     }
 
@@ -414,13 +369,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     // from here on failures should err on the side of denying access
 
     if ((ret = drop_privileges(uid, gid)) != PAM_SUCCESS ) {
-        log_message(LOG_ERR, pamh, "failed to drop privileges");
+        pam_syslog(pamh, LOG_ERR, "failed to drop privileges");
         return ret;
     }
 
     char token_buf[TOKEN_LEN+1] = {0};
     if ((ret = generate_random_token(token_buf)) != PAM_SUCCESS) {
-        log_message(LOG_ERR, pamh, "failed to generate random token");
+        pam_syslog(pamh, LOG_ERR, "failed to generate random token");
         return ret;
     }
     const char *token = token_buf;
@@ -428,7 +383,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char signal_cmd_buf[MAX_BUF_SIZE] = {0};
     if ((ret = build_signal_command(config_filename, token, signal_cmd_buf)) 
             != PAM_SUCCESS) {
-        log_message(LOG_ERR, pamh, "failed to build signal command");
+        pam_syslog(pamh, LOG_ERR, "failed to build signal command");
         return ret;
     }
     const char *signal_cmd = signal_cmd_buf;
@@ -436,14 +391,14 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char response_buf[MAX_BUF_SIZE] = {0};
     ret = send_signal_msg_and_wait_for_response(pamh, flags, signal_cmd, response_buf); 
     if (ret != PAM_SUCCESS) {
-        log_message(LOG_ERR, pamh, "failed to send signal message or get response");
+        pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
         return PAM_AUTH_ERR;
     }
     const char *response = response_buf;
 
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
-        log_message(LOG_ERR, pamh, "incorrect token");
+        pam_syslog(pamh, LOG_ERR, "incorrect token");
         return PAM_AUTH_ERR;
     }
 
