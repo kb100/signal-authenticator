@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -282,7 +283,6 @@ int build_signal_command(const char *config_filename, const char *token,
     }
 }
 
-
 /* this function is ripped from pam_unix/support.c, it lets us do IO via PAM */
 int converse(pam_handle_t *pamh, int nargs, struct pam_message **message, 
         struct pam_response **response) {
@@ -398,13 +398,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     char config_filename_buf[MAX_BUF_SIZE] = {0};
     if (get_2fa_config_filename(home_dir, config_filename_buf) != PAM_SUCCESS) {
         log_message(LOG_ERR, pamh, "failed to get config filename");
-        return NULL_FAILURE;
+        goto null_failure;
     }
 
     const char *config_filename = config_filename_buf;
     if (!config_exists_permissions_good(pamh, uid, gid, config_filename,
                 strict_permissions)) {
-        return NULL_FAILURE;
+        goto null_failure;
     }
 
     // at this point we know the user must do 2fa,
@@ -448,6 +448,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     }
 
     return PAM_SUCCESS;
+
+    null_failure : {
+        if (nullok) {
+            pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
+        }
+        return NULL_FAILURE;
+    }
 }
 
 /*
