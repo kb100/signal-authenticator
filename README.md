@@ -139,6 +139,25 @@ To temporarily test the `hidepid` option,
 sudo mount -o remount,rw,hidepid=2 /proc
 ```
 
+## Can google see my authentication tokens?
+
+Short answer: the tokens themselves NO, when the tokens are sent MAYBE.
+
+Long answer: even if you register with a google voice number, google cannot see
+your authentication tokens. The reason is that the tokens are end-to-end
+encrypted and transmitted through signal, not through sms.
+One end is your phone, the other end is your computer.
+Neither end is your google voice sms inbox.
+The only reason a google voice number is suggested is because signal
+requires a "real" phone number in order to register, regardless of whether you are
+registering from a phone or computer.
+However, signal itself depends on google play services in a way that google
+may be able to tell when you receive an authentication token, but google will 
+not be able to distinguish between this authentication token
+versus any other signal message that you receive on your phone without doing
+some kind of traffic correlation attack.
+In any case, the tokens themselves are never seen by google.
+
 ## Something didn't work?
 
 First run `make check-configs` and see if everything looks okay.
