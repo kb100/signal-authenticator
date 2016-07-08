@@ -11,9 +11,7 @@ endif
 ifndef SIGNAL_HOME
 SIGNAL_HOME = "/var/lib/signal-cli"
 endif
-ifndef SIGNAL_USER
 SIGNAL_USER = "signal-cli"
-endif
 PSA = pam_signal_authenticator
 
 all: $(PSA).so
