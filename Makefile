@@ -25,7 +25,7 @@ $(PSA).so : $(PSA).c
 
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
-	adduser --system --home $(SIGNAL_HOME) $(SIGNAL_USER)
+	adduser --system --group --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
