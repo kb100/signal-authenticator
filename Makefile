@@ -8,6 +8,12 @@ endif
 ifndef SIGNAL_PROG
 SIGNAL_PROG = "/usr/local/bin/signal-cli"
 endif
+ifndef SIGNAL_HOME
+SIGNAL_HOME = "/var/lib/signal-cli"
+endif
+ifndef SIGNAL_USER
+SIGNAL_USER = "signal-cli"
+endif
 PSA = pam_signal_authenticator
 
 all: $(PSA).so
@@ -19,9 +25,11 @@ $(PSA).so : $(PSA).c
 
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
+	adduser --system --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
+	deluser --system $(SIGNAL_USER)
 
 check-configs:
 	@echo "Checking /etc/ssh/sshd_config"
