@@ -5,13 +5,13 @@ CSHAREDLIB_FLAGS = -fPIC -DPIC -shared -rdynamic
 ifndef LIB_SECURITY_DIR
 LIB_SECURITY_DIR = "/lib/x86_64-linux-gnu/security"
 endif
-ifndef SIGNAL_PROG
-SIGNAL_PROG = "/usr/local/bin/signal-cli"
+ifndef SIGNAL_CLI
+SIGNAL_CLI = "/usr/local/bin/signal-cli"
 endif
 ifndef SIGNAL_HOME
-SIGNAL_HOME = "/var/lib/signal-cli"
+SIGNAL_HOME = "/var/lib/signal-authenticator"
 endif
-SIGNAL_USER = "signal-cli"
+SIGNAL_USER = "signal-authenticator"
 PSA = pam_signal_authenticator
 
 all: $(PSA).so

@@ -35,14 +35,27 @@
 #include <stdarg.h>
 #include <sys/wait.h>
 
-#define MAX_BUF_SIZE 1024
-#define TOKEN_LEN 10
 #define MODULE_NAME "pam_signal_authenticator.so"
+#ifndef SIGNAL_CLI
+#define SIGNAL_CLI "/usr/local/bin/signal-cli"
+#endif
+#define SIGNAL_CLI_LEN ((sizeof(SIGNAL_CLI)/sizeof(SIGNAL_CLI[0]))-1)
+#ifndef MAX_BUF_SIZE
+#define MAX_BUF_SIZE 1024
+#endif
+#ifndef TOKEN_LEN
+#define TOKEN_LEN 10
+#endif
+#ifndef CONFIG_FILE
 #define CONFIG_FILE ".signal_authenticator"
-#define SYSTEM_SIGNAL_USER "signal-cli"
+#endif
+#ifndef SYSTEM_SIGNAL_USER
+#define SYSTEM_SIGNAL_USER "signal-authenticator"
+#endif
+#ifndef ALLOWED_CHARS
 #define ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyz"
+#endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
-#define SIGNAL_PROG_LEN ((sizeof(SIGNAL_PROG)/sizeof(SIGNAL_PROG[0]))-1)
 
 /* PAM entry point for session creation */
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
@@ -92,7 +105,7 @@ int configs_exist_permissions_good(
         const char *signal_config_filename,
         bool strict_permissions,
         bool use_system_user) {
-    struct stat s = {0};
+    struct stat s = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0}};
     int result = stat(config_filename, &s);
     if (result < 0) {/* if file does not exist or something else fails */
         return false;
@@ -118,12 +131,12 @@ int configs_exist_permissions_good(
         }
         // nostrictpermissions does not apply to the admin
         if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
-            pam_syslog(pamh, LOG_ERR, "signal-cli uid=%d, but config uid=%d",
+            pam_syslog(pamh, LOG_ERR, "signal-authenticator uid=%d, but config uid=%d",
                     signal_pw->pw_uid, s.st_uid);
             return false;
         }
         if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-            pam_syslog(pamh, LOG_ERR, "signal-cli config has bad permissions, try chmod o-rwx");
+            pam_syslog(pamh, LOG_ERR, "signal-authenticator config has bad permissions, try chmod o-rwx");
             return false;
         }
     }
@@ -307,13 +320,9 @@ int build_signal_command(
     }
     const char *recipients = recipients_buf;;
     
-    // see makefile for how SIGNAL_PROG gets expanded
-    // default is /usr/local/bin/signal-cli
-    const char *signal_prog = SIGNAL_PROG;
-
     ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE, 
             "%s -u %s send -m '%s' %s >/dev/null 2>&1",
-            signal_prog, username, token, recipients);
+            SIGNAL_CLI, username, token, recipients);
     if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
         pam_syslog(pamh, LOG_ERR, "Failed to snprintf the signal command");
         return PAM_AUTH_ERR;
@@ -442,7 +451,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return ret;
     }
 
-    //get the user and signal-cli's passwd info
+    //get the user and signal-authenticator's passwd info
     struct passwd *pw = NULL;
     struct passwd pw_s;
     char passdw_char_buf[MAX_BUF_SIZE] = {0};
@@ -470,7 +479,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     char signal_config_filename_buf[MAX_BUF_SIZE] = {0};
     if (use_system_user && get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to get signal-cli config filename");
+        pam_syslog(pamh, LOG_ERR, "failed to get signal-authenticator config filename");
     }
 
     const char *config_filename = config_filename_buf;
