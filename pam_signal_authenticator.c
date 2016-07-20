@@ -321,8 +321,10 @@ int build_signal_command(
     const char *recipients = recipients_buf;;
     
     ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE, 
-            "%s -u %s send -m '%s' %s >/dev/null 2>&1",
-            SIGNAL_CLI, username, token, recipients);
+            "%s -u %s send -m '%s' %s >/dev/null 2>&1 &&"
+            "%s -u %s receive >/dev/null 2>&1 &",
+            SIGNAL_CLI, username, token, recipients,
+            SIGNAL_CLI, username);
     if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
         pam_syslog(pamh, LOG_ERR, "Failed to snprintf the signal command");
         return PAM_AUTH_ERR;
