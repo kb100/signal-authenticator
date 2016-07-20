@@ -1,19 +1,19 @@
-/*                                                                                                                                                                                                
- * pam_signal_authenticator.c 
- * Copyright (C) 2016 James Murphy 
- *                                                                              
- * This program is free software: you can redistribute it and/or modify         
- * it under the terms of the GNU General Public License as published by         
+/*
+ * pam_signal_authenticator.c
+ * Copyright (C) 2016 James Murphy
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 2 of the License.
- *                                                                              
- * This program is distributed in the hope that it will be useful,              
- * but WITHOUT ANY WARRANTY; without even the implied warranty of               
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
- * GNU General Public License for more details.                                 
- *                                                                              
- * You should have received a copy of the GNU General Public License            
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.        
- */  
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #define PAM_SH_ACCOUNT
 #define PAM_SH_AUTH
@@ -62,21 +62,6 @@
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
-/* PAM entry point for session creation */
-int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return PAM_IGNORE;
-}
-
-/* PAM entry point for session cleanup */
-int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return PAM_IGNORE;
-}
-
-/* PAM entry point for accounting */
-int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return PAM_IGNORE;
-}
-
 
 int get_user(pam_handle_t *pamh, const char **user_ptr) {
     if (user_ptr == NULL) {
@@ -94,7 +79,7 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
         return PAM_AUTH_ERR;
     }
     size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
-    int snp_ret = snprintf(fn_buf, buf_size, 
+    int snp_ret = snprintf(fn_buf, buf_size,
             "%s/"CONFIG_FILE, home_dir);
     if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
         return PAM_AUTH_ERR;
@@ -103,8 +88,8 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
 }
 
 int configs_exist_permissions_good(
-        pam_handle_t *pamh, 
-        struct passwd *pw, 
+        pam_handle_t *pamh,
+        struct passwd *pw,
         struct passwd *signal_pw,
         const char *config_filename,
         const char *signal_config_filename,
@@ -205,12 +190,12 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
     while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
         int len = strlen(line_buf);
         if (line_buf[len-1] != '\n') {
-           return PAM_AUTH_ERR; 
+           return PAM_AUTH_ERR;
         }
         line_buf[len-1] = '\0';
         const char *line = line_buf;
         switch (*line) {
-            // Comment or empty line? 
+            // Comment or empty line?
             case '#':
             case '\0':
                 break;
@@ -221,7 +206,7 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
                 }
                 line += strlen("username=");
                 if (looks_like_phone_number(line)) {
-                    strncpy(username_buf, line, strlen(line)); 
+                    strncpy(username_buf, line, strlen(line));
                     username_found = true;
                 }
                 break;
@@ -235,9 +220,9 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
     }
 
     return PAM_SUCCESS;
-   
+
     error: {
-        fclose(config_fp); 
+        fclose(config_fp);
         return PAM_AUTH_ERR;
     }
 }
@@ -254,12 +239,12 @@ int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX
     while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
         int len = strlen(line_buf);
         if (line_buf[len -1] != '\n') {
-           return PAM_AUTH_ERR; 
+           return PAM_AUTH_ERR;
         }
         line_buf[len-1] = '\0';
         const char *line = line_buf;
         switch (*line) {
-            // Comment or empty line? 
+            // Comment or empty line?
             case '#':
             case '\0':
                 break;
@@ -293,21 +278,21 @@ int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX
     recipients_buf[recipients_strlen-1] = '\0';
 
     return PAM_SUCCESS;
-   
+
     error: {
-        fclose(config_fp); 
+        fclose(config_fp);
         return PAM_AUTH_ERR;
     }
 }
 
 int build_signal_command(
         pam_handle_t *pamh,
-        const char *config_filename, 
+        const char *config_filename,
         const char *signal_config_filename,
-        const char *token, 
+        const char *token,
         char signal_cmd_buf[MAX_BUF_SIZE],
         bool use_system_user) {
-    
+
     int ret;
     char username_buf[MAX_BUF_SIZE] = {0};
 
@@ -324,8 +309,8 @@ int build_signal_command(
         return PAM_AUTH_ERR;
     }
     const char *recipients = recipients_buf;;
-    
-    ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE, 
+
+    ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE,
             "%s -u %s send -m '%s' %s >/dev/null 2>&1 &&"
             "%s -u %s receive >/dev/null 2>&1 &",
             SIGNAL_CLI, username, token, recipients,
@@ -339,15 +324,15 @@ int build_signal_command(
 }
 
 /* this function is ripped from pam_unix/support.c, it lets us do IO via PAM */
-int converse(pam_handle_t *pamh, int nargs, struct pam_message **message, 
+int converse(pam_handle_t *pamh, int nargs, struct pam_message **message,
         struct pam_response **response) {
 
     // as per pam_get_item docs, do not free conv
 	struct pam_conv *conv;
 
-	int ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv); 
+	int ret = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
 	if (ret == PAM_SUCCESS) {
-		ret = conv->conv(nargs, (const struct pam_message **) message, 
+		ret = conv->conv(nargs, (const struct pam_message **) message,
                 response, conv->appdata_ptr);
 	}
 
@@ -355,7 +340,7 @@ int converse(pam_handle_t *pamh, int nargs, struct pam_message **message,
 }
 
 
-int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, 
+int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         struct passwd *drop_pw, const char *signal_cmd, char response_buf[MAX_BUF_SIZE]) {
     int ret;
 
@@ -396,7 +381,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
     msg[0].msg = "1-time code: ";
     resp = NULL;
     if ((ret = converse(pamh, 1 , pmsg, &resp)) != PAM_SUCCESS) {
-        // if this function fails, make sure that 
+        // if this function fails, make sure that
         // ChallengeResponseAuthentication in sshd_config is set to yes
         return ret;
     }
@@ -409,13 +394,13 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         }
         ret = snprintf(response_buf, sizeof(char[MAX_BUF_SIZE]), "%s", resp[0].resp);
         memset(resp[0].resp, 0, strlen(resp[0].resp) * sizeof(char));
-        free(resp[0].resp); 
+        free(resp[0].resp);
         resp[0].resp = NULL;
         free(resp);
         if (ret < 0 || (size_t)ret >= MAX_BUF_SIZE){
             return PAM_AUTH_ERR;
         }
-    } 
+    }
     else {
         return PAM_CONV_ERR;
     }
@@ -470,7 +455,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         pam_syslog(pamh, LOG_ERR, "failed to get passwd struct");
         return PAM_AUTH_ERR;
     }
-    ret = getpwnam_r(SYSTEM_SIGNAL_USER, &signal_pw_s, signal_passdw_char_buf, 
+    ret = getpwnam_r(SYSTEM_SIGNAL_USER, &signal_pw_s, signal_passdw_char_buf,
             sizeof(signal_passdw_char_buf), &signal_pw);
     if (ret != 0 || signal_pw == NULL || signal_pw->pw_dir == NULL || signal_pw->pw_dir[0] != '/') {
         pam_syslog(pamh, LOG_ERR, "failed to get signal passwd struct");
@@ -511,8 +496,8 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     const char *token = token_buf;
 
     char signal_cmd_buf[MAX_BUF_SIZE] = {0};
-    ret = build_signal_command(pamh, config_filename, signal_config_filename, 
-            token, signal_cmd_buf, use_system_user); 
+    ret = build_signal_command(pamh, config_filename, signal_config_filename,
+            token, signal_cmd_buf, use_system_user);
     if (ret != PAM_SUCCESS) {
         pam_syslog(pamh, LOG_ERR, "failed to build signal command");
         return ret;
@@ -523,7 +508,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     struct passwd *drop_pw = use_system_user? signal_pw : pw;
 
     char response_buf[MAX_BUF_SIZE] = {0};
-    ret = send_signal_msg_and_wait_for_response(pamh, drop_pw, signal_cmd, response_buf); 
+    ret = send_signal_msg_and_wait_for_response(pamh, drop_pw, signal_cmd, response_buf);
     if (ret != PAM_SUCCESS) {
         pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
         return PAM_AUTH_ERR;
@@ -543,6 +528,26 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         }
         return NULL_FAILURE;
     }
+}
+
+
+/*
+ * These PAM entry points are not used in signal-authenticator
+ */
+
+/* PAM entry point for session creation */
+int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return PAM_IGNORE;
+}
+
+/* PAM entry point for session cleanup */
+int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return PAM_IGNORE;
+}
+
+/* PAM entry point for accounting */
+int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return PAM_IGNORE;
 }
 
 /*
