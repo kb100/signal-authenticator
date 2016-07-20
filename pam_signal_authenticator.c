@@ -52,6 +52,11 @@
 #ifndef SYSTEM_SIGNAL_USER
 #define SYSTEM_SIGNAL_USER "signal-authenticator"
 #endif
+
+/*
+ * signal-cli is called using system(), so DO NOT allow escape characters,
+ * quotes, semicolons, etc. unless you sanitize the system call
+ */
 #ifndef ALLOWED_CHARS
 #define ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyz"
 #endif
