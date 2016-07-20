@@ -11,7 +11,7 @@ That said, it works ;)
 
 - A phone with signal installed
 - A different phone number (using a google voice number is fine)
-- [signal-cli](https://github.com/AsamK/signal-cli).
+- [signal-cli](https://github.com/AsamK/signal-cli)
 - SSH server
 
 ## Options
@@ -31,7 +31,7 @@ authentication
 
 ## Setup
 
-There are two supported methods that signal-authenticator can be set-up:
+There are two supported modes that signal-authenticator can use:
 systemwide sender, and per-user sender.
 In the systemwide mode, all authentication tokens are sent through one signal number
 owned by the system administrator.
@@ -43,7 +43,7 @@ Follow the instructions below for your desired mode.
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
-Next the build dependencies for signal-authenticator:
+Next we get the build dependencies for signal-authenticator:
 
 ```
 sudo apt-get update
