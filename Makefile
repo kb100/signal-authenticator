@@ -19,15 +19,15 @@ all: $(PSA).so
 warn: CFLAGS += $(CWARN_FLAGS) 
 
 $(PSA).so : $(PSA).c
-	gcc $(CSHAREDLIB_FLAGS) $(CFLAGS) -DSIGNAL_PROG='$(SIGNAL_PROG)' -o $@ $<
+	gcc $(CSHAREDLIB_FLAGS) $(CFLAGS) -DSIGNAL_CLI='$(SIGNAL_CLI)' -o $@ $<
 
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
-	adduser --system --group --home $(SIGNAL_HOME) $(SIGNAL_USER)
+	adduser --system --quiet --group --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
-	deluser --system $(SIGNAL_USER)
+	deluser --system --quiet $(SIGNAL_USER)
 
 check-configs:
 	@echo "Checking /etc/ssh/sshd_config"
