@@ -53,6 +53,8 @@ sudo apt-get install build-essential libpam0g-dev
 then
 
 ```
+git clone "https://github.com/kb100/signal-authenticator.git"
+cd signal-authenticator
 make
 sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
 ```
@@ -193,7 +195,7 @@ Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
-### Option 2: Per-user sender
+### Option 2: per-user sender
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
@@ -239,6 +241,8 @@ sudo apt-get install build-essential libpam0g-dev
 then
 
 ```
+git clone "https://github.com/kb100/signal-authenticator.git"
+cd signal-authenticator
 make
 sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
 ```
