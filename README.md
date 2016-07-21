@@ -1,10 +1,10 @@
 # signal-authenticator
 
 PAM module for two-factor authentication through [signal](https://github.com/WhisperSystems/Signal-Android).
-Depends on
 
 This project is HIGHLY EXPERIMENTAL (pull requests welcome), has never been audited,
-has been minimally tested. DO NOT USE unless you understand the risks.
+and has been minimally tested. 
+DO NOT USE unless you understand the risks.
 That said, it works ;)
 
 ## Requirements
@@ -12,7 +12,7 @@ That said, it works ;)
 - A phone with signal installed
 - A different phone number (using a google voice number is fine)
 - [signal-cli](https://github.com/AsamK/signal-cli)
-- SSH server
+- SSH server (assumed to be using pubkey authentication already)
 
 ## Options
 
