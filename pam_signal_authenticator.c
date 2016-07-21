@@ -414,7 +414,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
     bool strict_permissions = true;
-    bool use_system_user = false;
+    bool use_system_user = true;
 
     while (argc > 0) {
         const char *arg = *argv;
@@ -429,6 +429,9 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         }
         else if (strcmp(arg, "systemuser") == 0) {
             use_system_user = true;
+        }
+        else if (strcmp(arg, "nosystemuser") == 0) {
+            use_system_user = false;
         }
         argc--;
         argv++;

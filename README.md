@@ -17,17 +17,21 @@ That said, it works ;)
 ## Options
 
 `nullok` (recommended) allows users who have not opted in to bypass the
-two-factor authentication.
+two-factor authentication, does not apply if user tried to opt in but has a
+bad config
 
 `nonull` requires all users to have properly setup two-factor authentication
 (high chance of user locking themselves out of ssh)
 
-`nostrictpermissions` allows users to make bad choices about the permissions
-of their config files while still allowing them to use two-factor
-authentication
+`nostrictpermissions` (not recommended) allows users to make bad choices about 
+the permissions of their config files while still allowing them to use
+two-factor authentication
 
-`systemuser` indicates that the systemuser mode of operation should be selected
+`systemuser` (default, recommended) indicates that the systemuser mode of operation should be selected
 (all tokens sent from one phone number owned by system administrator)
+
+`nosystemuser` indicates that the per-user mode of operation should be selected
+(each user provides their own phone number to send tokens from)
 
 ## Setup
 
@@ -223,7 +227,7 @@ and for `/etc/pam.d/sshd`
 # we have disabled PasswordAuthentication
 # @include common-auth
 auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok
+auth    required        pam_signal_authenticator.so nullok nosystemwide
 ```
 
 Note: PAM config files are are more like scripts,
