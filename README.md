@@ -129,7 +129,7 @@ auth    required        pam_signal_authenticator.so nullok systemwide
 Note: PAM config files are are more like scripts,
 they are executed in order so make sure you put
 those two lines exactly where the common-auth line used to be (near the top),
-otherwise you may allow allow a user access before authenticating them (BAD!).
+otherwise you may allow a user access before authenticating them (BAD!).
 
 Restart your sshd
 
@@ -233,7 +233,7 @@ auth    required        pam_signal_authenticator.so nullok nosystemwide
 Note: PAM config files are are more like scripts,
 they are executed in order so make sure you put
 those two lines exactly where the common-auth line used to be (near the top),
-otherwise you may allow allow a user access before authenticating them (BAD!).
+otherwise you may allow a user access before authenticating them (BAD!).
 
 Get the build dependencies:
 
