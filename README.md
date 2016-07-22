@@ -335,6 +335,86 @@ Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
+## How can I require other combinations of authentication?
+
+Other multi-factor authentication combinations can be achieved by changing
+`/etc/pam.d/sshd` and `/etc/ssh/sshd_config`.
+In the below examples, only the parts of the files that need to be changed
+from what was described above are shown.
+
+#### Public key AND Signal
+
+`/etc/pam.d/sshd`
+```
+#@include common-auth
+auth	required	pam_permit.so
+auth	required	pam_signal_authenticator.so nullok systemuser
+```
+
+`/etc/ssh/sshd_config`
+```
+AuthenticationMethods publickey,keyboard-interactive:pam
+```
+
+#### Public key AND Password AND Signal
+
+`/etc/pam.d/sshd`
+```
+@include common-auth
+#auth	required	pam_permit.so
+auth	required	pam_signal_authenticator.so nullok systemuser
+```
+
+`/etc/ssh/sshd_config`
+```
+AuthenticationMethods publickey,keyboard-interactive:pam
+```
+
+#### Public key OR (Password AND Signal)
+
+`/etc/pam.d/sshd`
+```
+@include common-auth
+#auth	required	pam_permit.so
+auth	required	pam_signal_authenticator.so nullok systemuser
+```
+
+`/etc/ssh/sshd_config`
+```
+AuthenticationMethods publickey keyboard-interactive:pam
+```
+
+#### Password AND Signal
+
+**(Highly discouraged, you should allow public key access)**
+
+`/etc/pam.d/sshd`
+```
+@include common-auth
+#auth	required	pam_permit.so
+auth	required	pam_signal_authenticator.so nullok systemuser
+```
+
+`/etc/ssh/sshd_config`
+```
+AuthenticationMethods keyboard-interactive:pam
+```
+
+#### (Public key AND Signal) OR (Password AND Signal)
+
+Unfortunately, due to the way that ssh interacts with PAM, this is not
+possible. The following **does not work** and will break your logins
+
+`/etc/ssh/sshd_config`
+```
+# DON'T DO THIS
+AuthenticationMethods publickey,keyboard-interactive:pam password,keyboard-interactive:pam
+```
+
+Although one would hope that this would work, when PAM is enabled "password"
+ALWAYS uses PAM, which we do not want since we are using PAM for Signal
+authentication. If you know a way around this please let me know.
+
 ## Hardening on multi-user systems
 
 The default behavior of Linux is extremely permissive and allows any user to see
