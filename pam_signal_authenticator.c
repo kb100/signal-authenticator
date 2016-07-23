@@ -15,16 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define PAM_SH_ACCOUNT
-#define PAM_SH_AUTH
-#define PAM_SH_PASSWORD
-#define PAM_SH_SESSION
-
 #include <pwd.h>
 #include <sys/types.h>
-#include <security/pam_appl.h>
-#include <security/pam_modules.h>
-#include <security/pam_ext.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -34,6 +26,14 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <sys/wait.h>
+
+#define PAM_SM_ACCOUNT
+#define PAM_SM_AUTH
+#define PAM_SM_PASSWORD
+#define PAM_SM_SESSION
+#include <security/pam_appl.h>
+#include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 #define MODULE_NAME "pam_signal_authenticator.so"
 #ifndef SIGNAL_CLI
@@ -492,7 +492,11 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
  * These PAM entry points are not used in signal-authenticator
  */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 /* PAM entry point for session creation */
+
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     return PAM_IGNORE;
 }
@@ -519,3 +523,5 @@ int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
 int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     return PAM_IGNORE;
 }
+
+#pragma GCC diagnostic pop
