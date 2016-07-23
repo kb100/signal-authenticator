@@ -167,7 +167,6 @@ bool looks_like_phone_number(const char *str) {
 
 
 int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF_SIZE]) {
-
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
         return PAM_AUTH_ERR;
@@ -280,7 +279,6 @@ int build_signal_command(
         const char *token,
         char signal_cmd_buf[MAX_BUF_SIZE],
         bool use_system_user) {
-
     int ret;
     char username_buf[MAX_BUF_SIZE] = {0};
 
@@ -314,7 +312,6 @@ int build_signal_command(
 int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         struct passwd *drop_pw, const char *signal_cmd, char response_buf[MAX_BUF_SIZE]) {
     int ret;
-
     pid_t c_pid;
     int status;
 
@@ -365,7 +362,6 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
 /* PAM entry point for authentication verification */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     int ret;
-
     bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
     bool strict_permissions = true;
     bool use_system_user = true;
@@ -487,7 +483,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     }
 }
 
-
 /*
  * These PAM entry points are not used in signal-authenticator
  */
@@ -496,7 +491,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 /* PAM entry point for session creation */
-
 PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     return PAM_IGNORE;
 }
