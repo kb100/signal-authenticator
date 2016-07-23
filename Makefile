@@ -17,6 +17,7 @@ PSA = pam_signal_authenticator
 all: $(PSA).so
 
 warn: CFLAGS += $(CWARN_FLAGS) 
+warn: $(PSA).so
 
 $(PSA).so : $(PSA).c
 	gcc $(CSHAREDLIB_FLAGS) $(CFLAGS) -DSIGNAL_CLI='$(SIGNAL_CLI)' -o $@ $<
