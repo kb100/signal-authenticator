@@ -315,8 +315,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         struct passwd *drop_pw, const char *signal_cmd, char response_buf[MAX_BUF_SIZE]) {
     int ret;
 
-    // send the actual signal message
-    pid_t c_pid, pid;
+    pid_t c_pid;
     int status;
 
     c_pid = fork();
@@ -326,6 +325,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         if ((ret = drop_privileges(drop_pw)) != PAM_SUCCESS ) {
             exit(EXIT_FAILURE);
         }
+        // send the actual signal message
         exit(system(signal_cmd));
     }
     else if (c_pid <  0) {
@@ -334,7 +334,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         return PAM_AUTH_ERR;
     }
     // parent
-    pid = wait(&status);
+    wait(&status);
 
     if(!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
         return PAM_AUTH_ERR;
