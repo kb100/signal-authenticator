@@ -62,17 +62,6 @@
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
-int get_user(pam_handle_t *pamh, const char **user_ptr) {
-    if (user_ptr == NULL) {
-        return PAM_USER_UNKNOWN;
-    }
-    int pgu_ret = pam_get_user(pamh, user_ptr, NULL);
-    if (pgu_ret != PAM_SUCCESS || *user_ptr == NULL) {
-        return PAM_USER_UNKNOWN;
-    }
-    return PAM_SUCCESS;
-}
-
 int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     if (home_dir == NULL || fn_buf == NULL) {
         return PAM_AUTH_ERR;
@@ -406,7 +395,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     //determine the user
     const char *user = NULL;
-    if ((ret = get_user(pamh, &user)) != PAM_SUCCESS) {
+    if ((ret = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS || user == NULL) {
         pam_syslog(pamh, LOG_ERR, "failed to get user");
         return ret;
     }
