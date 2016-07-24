@@ -35,6 +35,8 @@ two-factor authentication
 
 `silent` no warnings or errors will be written to the system log
 
+`debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
+
 ## Setup
 
 There are two supported modes that signal-authenticator can use:

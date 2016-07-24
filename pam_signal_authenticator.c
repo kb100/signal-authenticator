@@ -383,7 +383,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         .nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
         .strict_permissions = true,
         .use_system_user = true,
-        .silent = false
+        .silent = flags & PAM_SILENT
     };
     Params *params = &params_s;
 
@@ -407,11 +407,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         else if (strcmp(arg, "silent") == 0) {
             params->silent = true;
         }
+        else if (strcmp(arg, "debug") == 0) {
+            params->silent = false;
+        }
         argc--;
         argv++;
     }
-    int NULL_FAILURE = params->nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
-
+    int NULL_FAILURE = params->nullok? PAM_SUCCESS : PAM_AUTH_ERR;
 
     //determine the user
     const char *user = NULL;
