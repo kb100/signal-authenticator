@@ -33,6 +33,8 @@ two-factor authentication
 `nosystemuser` indicates that the per-user mode of operation should be selected
 (each user provides their own phone number to send tokens from)
 
+`silent` no warnings or errors will be written to the system log
+
 ## Setup
 
 There are two supported modes that signal-authenticator can use:

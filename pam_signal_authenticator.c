@@ -62,6 +62,13 @@
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
+typedef struct params {
+    bool nullok;
+    bool strict_permissions;
+    bool use_system_user;
+    bool silent;
+} Params;
+
 int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     if (home_dir == NULL || fn_buf == NULL) {
         return PAM_AUTH_ERR;
@@ -77,44 +84,49 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
 
 int configs_exist_permissions_good(
         pam_handle_t *pamh,
+        const Params *params,
         struct passwd *pw,
         struct passwd *signal_pw,
         const char *config_filename,
-        const char *signal_config_filename,
-        bool strict_permissions,
-        bool use_system_user) {
+        const char *signal_config_filename) {
     struct stat s = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0}};
     int result = stat(config_filename, &s);
     if (result < 0) {/* if file does not exist or something else fails */
         return false;
     }
-    if (strict_permissions) {
+    if (params->strict_permissions) {
         if (s.st_uid != pw->pw_uid ) {
-            pam_syslog(pamh, LOG_ERR, "User uid=%d, but config uid=%d", pw->pw_uid, s.st_uid);
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "User uid=%d, but config uid=%d", pw->pw_uid, s.st_uid);
             return false;
         }
         if (s.st_gid != pw->pw_gid ) {
-            pam_syslog(pamh, LOG_ERR, "User gid=%d, but config gid=%d", pw->pw_gid, s.st_gid);
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "User gid=%d, but config gid=%d", pw->pw_gid, s.st_gid);
             return false;
         }
         if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-            pam_syslog(pamh, LOG_ERR, "config has bad permissions, try chmod o-rwx");
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "config has bad permissions, try chmod o-rwx");
             return false;
         }
     }
-    if (use_system_user) {
+    if (params->use_system_user) {
         result = stat(signal_config_filename, &s);
         if (result < 0) {
             return false;
         }
         // nostrictpermissions does not apply to the admin
         if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
-            pam_syslog(pamh, LOG_ERR, "signal-authenticator uid=%d, but config uid=%d",
-                    signal_pw->pw_uid, s.st_uid);
+            if (!params->silent) {
+                pam_syslog(pamh, LOG_ERR, "signal-authenticator uid=%d, but config uid=%d",
+                        signal_pw->pw_uid, s.st_uid);
+            }
             return false;
         }
         if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-            pam_syslog(pamh, LOG_ERR, "signal-authenticator config has bad permissions, try chmod o-rwx");
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "signal-authenticator config has bad permissions, try chmod o-rwx");
             return false;
         }
     }
@@ -164,7 +176,6 @@ bool looks_like_phone_number(const char *str) {
     }
     return true;
 }
-
 
 int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF_SIZE]) {
     FILE *config_fp = fopen(config_filename, "r");
@@ -274,27 +285,29 @@ int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX
 
 int build_signal_command(
         pam_handle_t *pamh,
+        const Params *params,
         const char *config_filename,
         const char *signal_config_filename,
         const char *token,
-        char signal_cmd_buf[MAX_BUF_SIZE],
-        bool use_system_user) {
+        char signal_cmd_buf[MAX_BUF_SIZE]) {
     int ret;
     char username_buf[MAX_BUF_SIZE] = {0};
 
-    const char * fn = use_system_user? signal_config_filename : config_filename;
+    const char * fn = params->use_system_user? signal_config_filename : config_filename;
     if ((ret = parse_signal_username(fn, username_buf)) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "Failed to parse username from config");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to parse username from config");
         return PAM_AUTH_ERR;
     }
     const char *username = username_buf;
 
     char recipients_buf[MAX_BUF_SIZE] = {0};
     if ((ret = parse_signal_recipients(config_filename, recipients_buf)) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "Failed to parse recipients from config");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to parse recipients from config");
         return PAM_AUTH_ERR;
     }
-    const char *recipients = recipients_buf;;
+    const char *recipients = recipients_buf;
 
     ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE,
             "%s -u %s send -m '%s' %s >/dev/null 2>&1 &&"
@@ -302,14 +315,15 @@ int build_signal_command(
             SIGNAL_CLI, username, token, recipients,
             SIGNAL_CLI, username);
     if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
-        pam_syslog(pamh, LOG_ERR, "Failed to snprintf the signal command");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to snprintf the signal command");
         return PAM_AUTH_ERR;
     }
 
     return PAM_SUCCESS;
 }
 
-int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
+int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, const Params *params,
         struct passwd *drop_pw, const char *signal_cmd, char response_buf[MAX_BUF_SIZE]) {
     int ret;
     pid_t c_pid;
@@ -327,7 +341,8 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
     }
     else if (c_pid <  0) {
         // error
-        pam_syslog(pamh, LOG_ERR, "failed to fork child for sending message");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to fork child for sending message");
         return PAM_AUTH_ERR;
     }
     // parent
@@ -340,7 +355,7 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
     char *response = NULL;
     ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "1-time code: ");
     if (ret != PAM_SUCCESS) {
-        if (ret == PAM_BUF_ERR){
+        if (ret == PAM_BUF_ERR && !params->silent){
             pam_syslog(pamh, LOG_ERR, "Possible malicious attempt, PAM_BUF_ERR.");
         }
         return ret;
@@ -350,7 +365,8 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
         strncpy(response_buf, response, MAX_BUF_SIZE);
         free(response);
         if (response_buf[MAX_BUF_SIZE-1] != '\0' ) {
-            pam_syslog(pamh, LOG_ERR, "Possible malicious attempt, response way too long.");
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "Possible malicious attempt, response way too long.");
             return PAM_AUTH_ERR;
         }
         return PAM_SUCCESS;
@@ -361,38 +377,48 @@ int send_signal_msg_and_wait_for_response(pam_handle_t *pamh,
 // This is the entry point, think of it as main()
 /* PAM entry point for authentication verification */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+
     int ret;
-    bool nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK);
-    bool strict_permissions = true;
-    bool use_system_user = true;
+    Params params_s = {
+        .nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
+        .strict_permissions = true,
+        .use_system_user = true,
+        .silent = false
+    };
+    Params *params = &params_s;
 
     while (argc > 0) {
         const char *arg = *argv;
         if (strcmp(arg, "nullok") == 0) {
-            nullok = true;
+            params->nullok = true;
         }
         else if (strcmp(arg, "nonull") == 0) {
-            nullok = false;
+            params->nullok = false;
         }
         else if (strcmp(arg, "nostrictpermissions") == 0) {
-            strict_permissions = false;
+            params->strict_permissions = false;
         }
         else if (strcmp(arg, "systemuser") == 0) {
-            use_system_user = true;
+            params->use_system_user = true;
         }
         else if (strcmp(arg, "nosystemuser") == 0) {
-            use_system_user = false;
+            params->use_system_user = false;
+        }
+        else if (strcmp(arg, "silent") == 0) {
+            params->silent = true;
         }
         argc--;
         argv++;
     }
+    int NULL_FAILURE = params->nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
-    int NULL_FAILURE = nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
     //determine the user
     const char *user = NULL;
     if ((ret = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS || user == NULL) {
-        pam_syslog(pamh, LOG_ERR, "failed to get user");
+        if (!params->silent) {
+            pam_syslog(pamh, LOG_ERR, "failed to get user");
+        }
         return ret;
     }
 
@@ -405,33 +431,36 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     char signal_passdw_char_buf[MAX_BUF_SIZE] = {0};
     ret = getpwnam_r(user, &pw_s, passdw_char_buf, sizeof(passdw_char_buf), &pw);
     if (ret != 0 || pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] != '/') {
-        pam_syslog(pamh, LOG_ERR, "failed to get passwd struct");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to get passwd struct");
         return PAM_AUTH_ERR;
     }
     ret = getpwnam_r(SYSTEM_SIGNAL_USER, &signal_pw_s, signal_passdw_char_buf,
             sizeof(signal_passdw_char_buf), &signal_pw);
     if (ret != 0 || signal_pw == NULL || signal_pw->pw_dir == NULL || signal_pw->pw_dir[0] != '/') {
-        pam_syslog(pamh, LOG_ERR, "failed to get signal passwd struct");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to get signal passwd struct");
         return PAM_AUTH_ERR;
     }
 
     // check that user wants 2 factor authentication
     char config_filename_buf[MAX_BUF_SIZE] = {0};
     if (get_2fa_config_filename(pw->pw_dir, config_filename_buf) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to get config filename");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to get config filename");
         goto null_failure;
     }
 
     char signal_config_filename_buf[MAX_BUF_SIZE] = {0};
-    if (use_system_user && get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to get signal-authenticator config filename");
+    if (params->use_system_user && get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to get signal-authenticator config filename");
     }
 
     const char *config_filename = config_filename_buf;
     const char *signal_config_filename = signal_config_filename_buf;
 
-    if (!configs_exist_permissions_good(pamh, pw, signal_pw, config_filename,
-                signal_config_filename, strict_permissions, use_system_user)) {
+    if (!configs_exist_permissions_good(pamh, params, pw, signal_pw, config_filename, signal_config_filename)) {
         goto null_failure;
     }
 
@@ -443,40 +472,43 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 
     char token_buf[TOKEN_LEN+1] = {0};
     if ((ret = generate_random_token(token_buf)) != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to generate random token");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to generate random token");
         return ret;
     }
     const char *token = token_buf;
 
     char signal_cmd_buf[MAX_BUF_SIZE] = {0};
-    ret = build_signal_command(pamh, config_filename, signal_config_filename,
-            token, signal_cmd_buf, use_system_user);
+    ret = build_signal_command(pamh, params, config_filename, signal_config_filename, token, signal_cmd_buf);
     if (ret != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to build signal command");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to build signal command");
         return ret;
     }
     const char *signal_cmd = signal_cmd_buf;
 
     // who should we drop privileges to before calling external programs?
-    struct passwd *drop_pw = use_system_user? signal_pw : pw;
+    struct passwd *drop_pw = params->use_system_user? signal_pw : pw;
 
     char response_buf[MAX_BUF_SIZE] = {0};
-    ret = send_signal_msg_and_wait_for_response(pamh, drop_pw, signal_cmd, response_buf);
+    ret = send_signal_msg_and_wait_for_response(pamh, params, drop_pw, signal_cmd, response_buf);
     if (ret != PAM_SUCCESS) {
-        pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
         return PAM_AUTH_ERR;
     }
     const char *response = response_buf;
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
-        pam_syslog(pamh, LOG_ERR, "incorrect token");
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "incorrect token");
         return PAM_AUTH_ERR;
     }
 
     return PAM_SUCCESS;
 
     null_failure : {
-        if (nullok) {
+        if (params->nullok) {
             pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
         }
         return NULL_FAILURE;
