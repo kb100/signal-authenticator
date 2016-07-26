@@ -8,6 +8,9 @@ endif
 ifndef SIGNAL_CLI
 SIGNAL_CLI = "/usr/local/bin/signal-cli"
 endif
+ifndef SIGNAL_SHELL
+SIGNAL_SHELL = "/bin/sh"
+endif
 ifndef SIGNAL_HOME
 SIGNAL_HOME = "/var/lib/signal-authenticator"
 endif
@@ -24,7 +27,7 @@ $(PSA).so : $(PSA).c
 
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
-	adduser --system --quiet --group --home $(SIGNAL_HOME) $(SIGNAL_USER)
+	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
