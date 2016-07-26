@@ -27,11 +27,11 @@ bad config
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
-`systemuser` (default, recommended) indicates that the systemuser mode of operation should be selected
-(all tokens sent from one phone number owned by system administrator)
+`systemuser` (default, recommended) indicates that all tokens should be sent 
+from one phone number owned by system administrator
 
-`nosystemuser` indicates that the per-user mode of operation should be selected
-(each user provides their own phone number to send tokens from)
+`nosystemuser` indicates that each user must provide their own signal number to
+send authentication tokens from
 
 `silent` no warnings or errors will be written to the system log
 
@@ -41,13 +41,13 @@ two-factor authentication
 
 There are two supported modes that signal-authenticator can use:
 systemwide sender, and per-user sender.
-In the systemwide mode, all authentication tokens are sent through one signal number
+In the systemwide mode `systemuser`, all authentication tokens are sent through one signal number
 owned by the system administrator.
-In the per-user mode, each user provides their own signal number from which
+In the per-user mode `nosystemuser`, each user provides their own signal number from which
 authentication tokens are sent.
 Follow the instructions below for your desired mode.
 
-### Option 1: systemwide sender
+### Option 1: All tokens sent from one signal number ownder by sysadmin (recommended)
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
@@ -127,7 +127,7 @@ and for `/etc/pam.d/sshd`
 # we have disabled PasswordAuthentication
 # @include common-auth
 auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok systemwide
+auth    required        pam_signal_authenticator.so nullok
 ```
 
 Note: PAM config files are are more like scripts,
@@ -203,7 +203,7 @@ Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
-### Option 2: per-user sender
+### Option 2: Each user provides their own signal number to send tokens from
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
@@ -231,7 +231,7 @@ and for `/etc/pam.d/sshd`
 # we have disabled PasswordAuthentication
 # @include common-auth
 auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok nosystemwide
+auth    required        pam_signal_authenticator.so nullok nosystemuser
 ```
 
 Note: PAM config files are are more like scripts,
@@ -352,7 +352,7 @@ from what was described above are shown.
 ```
 #@include common-auth
 auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok systemuser
+auth	required	pam_signal_authenticator.so nullok 
 ```
 
 `/etc/ssh/sshd_config`
@@ -366,7 +366,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok systemuser
+auth	required	pam_signal_authenticator.so nullok 
 ```
 
 `/etc/ssh/sshd_config`
@@ -380,7 +380,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok systemuser
+auth	required	pam_signal_authenticator.so nullok 
 ```
 
 `/etc/ssh/sshd_config`
@@ -396,7 +396,7 @@ AuthenticationMethods publickey keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok systemuser
+auth	required	pam_signal_authenticator.so nullok 
 ```
 
 `/etc/ssh/sshd_config`
