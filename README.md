@@ -47,7 +47,7 @@ In the per-user mode `nosystemuser`, each user provides their own signal number 
 authentication tokens are sent.
 Follow the instructions below for your desired mode.
 
-### Option 1: All tokens sent from one signal number ownder by sysadmin (recommended)
+### Option 1: All tokens sent from one signal number owned by sysadmin (recommended)
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
