@@ -410,6 +410,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         else if (strcmp(arg, "debug") == 0) {
             params->silent = false;
         }
+        else {
+            pam_syslog(pamh, LOG_ERR, "Aborting due to unknown option: %s", arg);
+            return PAM_AUTH_ERR;
+        }
         argc--;
         argv++;
     }
