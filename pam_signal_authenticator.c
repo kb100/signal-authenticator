@@ -35,6 +35,7 @@
 #include <security/pam_modules.h>
 #include <security/pam_ext.h>
 
+#define VERSION "0.1"
 #define MODULE_NAME "pam_signal_authenticator.so"
 #ifndef SIGNAL_CLI
 #define SIGNAL_CLI "/usr/local/bin/signal-cli"

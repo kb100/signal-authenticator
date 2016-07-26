@@ -2,25 +2,28 @@
 
 PAM module for two-factor authentication through [signal](https://github.com/WhisperSystems/Signal-Android).
 
-This project is HIGHLY EXPERIMENTAL (pull requests welcome), has never been audited,
+This project is in its ALPHA stage.
+It is HIGHLY EXPERIMENTAL,
+has never been audited,
 and has been minimally tested. 
 DO NOT USE unless you understand the risks.
-That said, it works ;)
+
+Contributors welcome! Report bugs to the issues page and please rebase to my
+master branch before submitting any pull requests.
 
 ## Requirements
 
 - A phone with signal installed
 - A different phone number (using a google voice number is fine)
 - [signal-cli](https://github.com/AsamK/signal-cli)
-- SSH server (assumed to be using pubkey authentication already)
+- SSH server (assumed to be using publickey authentication already)
 
 ## Options
 
-`nullok` (recommended) allows users who have not opted in to bypass the
-two-factor authentication, does not apply if user tried to opt in but has a
-bad config
+`nullok` (recommended) allows users who have not opted in to bypass signal
+authentication, does not apply if user tried to opt in but has a bad config
 
-`nonull` requires all users to have properly setup two-factor authentication
+`nonull` requires all users to have properly setup signal authentication
 (high chance of user locking themselves out of ssh)
 
 `nostrictpermissions` (not recommended) allows users to make bad choices about 
@@ -51,7 +54,7 @@ Follow the instructions below for your desired mode.
 
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
-Next we get the build dependencies for signal-authenticator:
+Get the build dependencies for signal-authenticator:
 
 ```
 sudo apt-get update
@@ -62,6 +65,7 @@ then
 
 ```
 git clone "https://github.com/kb100/signal-authenticator.git"
+# or fork your own copy and clone that
 cd signal-authenticator
 make
 sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
@@ -71,7 +75,7 @@ where you probably want to replace the lib security directory with the output
 of `dirname $(locate pam_permit.so)`, and change the location of the signal-cli binary
 appropriately.
 
-Next we need to register the signal-authenticator user's phone number with signal.
+Next register the signal-authenticator user's phone number with signal:
 
 ```
 sudo su signal-authenticator
@@ -81,7 +85,7 @@ signal-cli -u +15551234567 register
 signal-cli -u +15551234567 verify CODE
 ```
 
-Then create `.signal_authenticator` in their home directory
+Then create `.signal_authenticator` in signal-authenticator's home directory
 with contents
 
 ```
@@ -94,7 +98,7 @@ Empty lines and lines that begin with `#` are ignored.
 Do not include extra spaces anywhere on the line.
 
 Make sure the signal-authenticator user is the only one who can read the
-signal config and `.signal_authenticator` files.
+signal config and `.signal_authenticator` files:
 
 ```
 chmod o-rwx ~/.signal_authenticator
@@ -102,7 +106,6 @@ chmod -R o-rwx ~/.config/signal
 exit # we are done with the signal-authenticator user
 ```
 
-Now we move to system configuration files.
 In order to require public key authentication + allow users to opt in to two-factor authentication,
 the important options for `/etc/ssh/sshd_config` are
 
@@ -135,7 +138,7 @@ they are executed in order so make sure you put
 those two lines exactly where the common-auth line used to be (near the top),
 otherwise you may allow a user access before authenticating them (BAD!).
 
-Restart your sshd
+Restart your sshd:
 
 ```
 sudo systemctl restart sshd
@@ -149,19 +152,11 @@ yet, so if you test it you should see
 Enter passphrase for key '/home/user/.ssh/id_rsa': 
 Authenticated with partial success.
 Authenticated fully. User has not enabled two-factor authentication.
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-You have new mail.
 Last login: Wed Jul 20 19:59:45 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
-To opt-in, a user should create a file `.signal_authenticator` in their home directory
+To opt in, a user should create a file `.signal_authenticator` in their home directory
 with contents
 
 ```
@@ -191,14 +186,6 @@ Enter passphrase for key '/home/user/.ssh/id_rsa':
 Authenticated with partial success.
 (1-time code sent through signal!)
 1-time code: mlfdolnvfb
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-No mail.
 Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
@@ -239,7 +226,7 @@ they are executed in order so make sure you put
 those two lines exactly where the common-auth line used to be (near the top),
 otherwise you may allow a user access before authenticating them (BAD!).
 
-Get the build dependencies:
+Get the build dependencies for signal-authenticator:
 
 ```
 sudo apt-get update
@@ -250,6 +237,7 @@ then
 
 ```
 git clone "https://github.com/kb100/signal-authenticator.git"
+# or fork your own copy and clone that
 cd signal-authenticator
 make
 sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
@@ -259,7 +247,7 @@ where you probably want to replace the lib security directory with the output
 of `dirname $(locate pam_permit.so)`, and change the location of the signal-cli binary
 appropriately.
 
-Restart your sshd
+Restart your sshd:
 
 ```
 sudo systemctl restart sshd
@@ -273,14 +261,6 @@ yet, so if you test it you should see
 Enter passphrase for key '/home/user/.ssh/id_rsa': 
 Authenticated with partial success.
 Authenticated fully. User has not enabled two-factor authentication.
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-You have new mail.
 Last login: Wed Jul 20 19:59:45 2016 from 127.0.0.1
 [user ~]$ 
 ```
@@ -302,7 +282,7 @@ recipient=+15559999999
 ```
 
 where the username is the signal username (phone number) to send from (which
-was just registered), and recipient is the signal username to send the token to.
+was just registered), and recipient is the signal username to send tokens to.
 Multiple recipients can be specified on their own lines.
 Empty lines and lines that begin with `#` are ignored.
 Do not include extra spaces anywhere on the line.
@@ -327,14 +307,6 @@ Enter passphrase for key '/home/user/.ssh/id_rsa':
 Authenticated with partial success.
 (1-time code sent through signal!)
 1-time code: mlfdolnvfb
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-No mail.
 Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
