@@ -10,6 +10,7 @@ DO NOT USE unless you understand the risks.
 
 Contributors welcome! Report bugs to the issues page and please rebase to my
 master branch before submitting any pull requests.
+See the [contributing page](CONTRIBUTING.md) for details.
 
 ## Requirements
 
@@ -444,13 +445,3 @@ If your sshd config has `SyslogFacility AUTH` (this is the default on
 debian, e.g.) then the right log is probably `/var/log/auth`, 
 but it may also be `/var/log/syslog` depending on your system.
 You can also access logs using `sudo journalctl` if you are using systemd.
-
-## Hacking
-
-The `pam_syslog` function is useful for testing,
-
-```
-pam_syslog(pamh, LOG_INFO, "%s %d", "printf like formatting", 7);
-```
-
-and results appear in your syslog.
