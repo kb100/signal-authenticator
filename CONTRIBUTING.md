@@ -7,6 +7,10 @@ Here are some low-hanging fruit:
 - Test on a variety of different machines, architectures, etc.
 - Stress test.
 - Find and fix typos or otherwise improve clarity in the README.
+- Edit Makefile to automatically determine the correct lib security directory
+  (is it `/lib/security`, `/lib32/security`, `/lib64/security`,
+  `/lib/x86_x4-linux-gnu/security`, or something else? I can't find
+  documentation)
 - Write a shell script to automate system setup and user opt ins.
 - Write a man page.
 - Create unit tests.
