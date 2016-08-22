@@ -61,7 +61,7 @@ check-configs:
 	@stat ~/.signal_authenticator | grep -q -- "-[rwx-]\{6\}---" \
 		|| echo "Need to chmod o-rwx ~/.signal_authenticator"
 	@stat ~/.signal_authenticator | grep -q "Uid:[[:space:]]*([[:space:]]*$(shell id -u)/" \
-		|| echo "Need to chown id -u -n):$(shell id -g -n) ~/.signal_authenticator"
+		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
 	@stat ~/.signal_authenticator | grep -q "Gid:[[:space:]]*([[:space:]]*$(shell id -g)/" \
 		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
 	@grep -q "^username=+[0-9]\\+" ~/.signal_authenticator \

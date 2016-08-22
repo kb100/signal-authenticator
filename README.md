@@ -31,50 +31,25 @@ authentication, does not apply if user tried to opt in but has a bad config
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
-`systemuser` (default, recommended) indicates that all tokens should be sent 
-from one phone number owned by system administrator
-
-`nosystemuser` indicates that each user must provide their own signal number to
-send authentication tokens from
-
 `silent` no warnings or errors will be written to the system log
 
 `debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
 ## Setup
 
-There are two supported modes that signal-authenticator can use:
-systemwide sender, and per-user sender.
-In the systemwide mode `systemuser`, all authentication tokens are sent through one signal number
-owned by the system administrator.
-In the per-user mode `nosystemuser`, each user provides their own signal number from which
-authentication tokens are sent.
-Follow the instructions below for your desired mode.
-
-### Option 1: All tokens sent from one signal number owned by sysadmin (recommended)
-
 Install [signal-cli](https://github.com/AsamK/signal-cli).
 
-Get the build dependencies for signal-authenticator:
+Get the build dependencies, download, make, and install signal-authenticator:
 
 ```
 sudo apt-get update
 sudo apt-get install build-essential libpam0g-dev
-```
-
-then
-
-```
 git clone "https://github.com/kb100/signal-authenticator.git"
 # or fork your own copy and clone that
 cd signal-authenticator
 make
-sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
+sudo make install
 ```
-
-where you probably want to replace the lib security directory with the output
-of `dirname $(locate pam_permit.so)`, and change the location of the signal-cli binary
-appropriately.
 
 Next register the signal-authenticator user's phone number with signal:
 
@@ -82,7 +57,7 @@ Next register the signal-authenticator user's phone number with signal:
 sudo su signal-authenticator
 cd ~
 signal-cli -u +15551234567 register
-# registration CODE sent through signal
+# registration CODE sent by OpenWhisperSystems to your SMS inbox
 signal-cli -u +15551234567 verify CODE
 ```
 
@@ -176,127 +151,6 @@ and the file is not allowed to be read by other users.
 
 ```
 chmod o-rwx ~/.signal_authenticator
-```
-
-Now the user's two-factor authentication is enabled, and it should look
-something like:
-
-```
-[user ~]$ ssh user@localhost
-Enter passphrase for key '/home/user/.ssh/id_rsa': 
-Authenticated with partial success.
-(1-time code sent through signal!)
-1-time code: mlfdolnvfb
-Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
-[user ~]$ 
-```
-
-### Option 2: Each user provides their own signal number to send tokens from
-
-Install [signal-cli](https://github.com/AsamK/signal-cli).
-
-In order to require public key authentication + allow users to opt in to two-factor authentication,
-the important options for `/etc/ssh/sshd_config` are
-
-```
-# ... other options
-
-# If you want to make sure it works before going live only listen to localhost
-# ListenAddress 127.0.0.1
-AuthenticationMethods publickey,keyboard-interactive:pam
-RSAAuthentication yes
-PubkeyAuthentication yes
-AuthorizedKeysFile	%h/.ssh/authorized_keys
-ChallengeResponseAuthentication yes
-PasswordAuthentication no
-UsePAM yes
-```
-
-and for `/etc/pam.d/sshd`
-
-```
-# comment out this common-auth line, this will ask for a passphrase even though
-# we have disabled PasswordAuthentication
-# @include common-auth
-auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok nosystemuser
-```
-
-Note: PAM config files are are more like scripts,
-they are executed in order so make sure you put
-those two lines exactly where the common-auth line used to be (near the top),
-otherwise you may allow a user access before authenticating them (BAD!).
-
-Get the build dependencies for signal-authenticator:
-
-```
-sudo apt-get update
-sudo apt-get install build-essential libpam0g-dev
-```
-
-then
-
-```
-git clone "https://github.com/kb100/signal-authenticator.git"
-# or fork your own copy and clone that
-cd signal-authenticator
-make
-sudo make install LIB_SECURITY_DIR=/lib/x86_64-linux-gnu/security SIGNAL_CLI=/usr/local/bin/signal-cli
-```
-
-where you probably want to replace the lib security directory with the output
-of `dirname $(locate pam_permit.so)`, and change the location of the signal-cli binary
-appropriately.
-
-Restart your sshd:
-
-```
-sudo systemctl restart sshd
-```
-
-Your signal-authenticator is now up and running! Though no one has opted in
-yet, so if you test it you should see
-
-```
-[user ~]$ ssh user@localhost
-Enter passphrase for key '/home/user/.ssh/id_rsa': 
-Authenticated with partial success.
-Authenticated fully. User has not enabled two-factor authentication.
-Last login: Wed Jul 20 19:59:45 2016 from 127.0.0.1
-[user ~]$ 
-```
-
-To opt in, a user should first register a phone number with signal-cli:
-
-```
-signal-cli -u +15551234567 register
-# registration CODE sent through signal
-signal-cli -u +15551234567 verify CODE
-```
-
-Then the user should create a file `.signal_authenticator` in their home directory
-with contents
-
-```
-username=+15551234567
-recipient=+15559999999
-```
-
-where the username is the signal username (phone number) to send from (which
-was just registered), and recipient is the signal username to send tokens to.
-Multiple recipients can be specified on their own lines.
-Empty lines and lines that begin with `#` are ignored.
-Do not include extra spaces anywhere on the line.
-
-Since phone numbers are not necessarily public information,
-unless the `nostrictpermissions` option is passed to `pam_signal_authenticator.so`,
-a user must own their `.signal_authenticator` file
-and the file is not allowed to be read by other users.
-Also make sure that the signal-cli config has similar permissions.
-
-```
-chmod o-rwx ~/.signal_authenticator
-chmod -R o-rwx ~/.config/signal
 ```
 
 Now the user's two-factor authentication is enabled, and it should look

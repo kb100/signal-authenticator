@@ -66,7 +66,6 @@
 typedef struct params {
     bool nullok;
     bool strict_permissions;
-    bool use_system_user;
     bool silent;
 } Params;
 
@@ -112,24 +111,23 @@ int configs_exist_permissions_good(
             return false;
         }
     }
-    if (params->use_system_user) {
-        result = stat(signal_config_filename, &s);
-        if (result < 0) {
-            return false;
+
+    result = stat(signal_config_filename, &s);
+    if (result < 0) {
+        return false;
+    }
+    // nostrictpermissions does not apply to the admin
+    if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
+        if (!params->silent) {
+            pam_syslog(pamh, LOG_ERR, "signal-authenticator uid=%d, but config uid=%d",
+                    signal_pw->pw_uid, s.st_uid);
         }
-        // nostrictpermissions does not apply to the admin
-        if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
-            if (!params->silent) {
-                pam_syslog(pamh, LOG_ERR, "signal-authenticator uid=%d, but config uid=%d",
-                        signal_pw->pw_uid, s.st_uid);
-            }
-            return false;
-        }
-        if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-            if (!params->silent)
-                pam_syslog(pamh, LOG_ERR, "signal-authenticator config has bad permissions, try chmod o-rwx");
-            return false;
-        }
+        return false;
+    }
+    if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "signal-authenticator config has bad permissions, try chmod o-rwx");
+        return false;
     }
     return true;
 }
@@ -294,8 +292,7 @@ int build_signal_command(
     int ret;
     char username_buf[MAX_BUF_SIZE] = {0};
 
-    const char * fn = params->use_system_user? signal_config_filename : config_filename;
-    if ((ret = parse_signal_username(fn, username_buf)) != PAM_SUCCESS) {
+    if ((ret = parse_signal_username(signal_config_filename, username_buf)) != PAM_SUCCESS) {
         if (!params->silent)
             pam_syslog(pamh, LOG_ERR, "Failed to parse username from config");
         return PAM_AUTH_ERR;
@@ -383,7 +380,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     Params params_s = {
         .nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
         .strict_permissions = true,
-        .use_system_user = true,
         .silent = flags & PAM_SILENT
     };
     Params *params = &params_s;
@@ -398,12 +394,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         }
         else if (strcmp(arg, "nostrictpermissions") == 0) {
             params->strict_permissions = false;
-        }
-        else if (strcmp(arg, "systemuser") == 0) {
-            params->use_system_user = true;
-        }
-        else if (strcmp(arg, "nosystemuser") == 0) {
-            params->use_system_user = false;
         }
         else if (strcmp(arg, "silent") == 0) {
             params->silent = true;
@@ -459,9 +449,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     }
 
     char signal_config_filename_buf[MAX_BUF_SIZE] = {0};
-    if (params->use_system_user && get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
+    if (get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
         if (!params->silent)
             pam_syslog(pamh, LOG_ERR, "failed to get signal-authenticator config filename");
+        goto null_failure;
     }
 
     const char *config_filename = config_filename_buf;
@@ -494,11 +485,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     }
     const char *signal_cmd = signal_cmd_buf;
 
-    // who should we drop privileges to before calling external programs?
-    struct passwd *drop_pw = params->use_system_user? signal_pw : pw;
-
     char response_buf[MAX_BUF_SIZE] = {0};
-    ret = send_signal_msg_and_wait_for_response(pamh, params, drop_pw, signal_cmd, response_buf);
+    ret = send_signal_msg_and_wait_for_response(pamh, params, signal_pw, signal_cmd, response_buf);
     if (ret != PAM_SUCCESS) {
         if (!params->silent)
             pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
