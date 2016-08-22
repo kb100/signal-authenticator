@@ -14,6 +14,9 @@ endif
 ifndef SIGNAL_HOME
 SIGNAL_HOME = "/var/lib/signal-authenticator"
 endif
+ifndef PREFIX
+PREFIX = "/usr/local"
+endif
 SIGNAL_USER = "signal-authenticator"
 PSA = pam_signal_authenticator
 
@@ -27,10 +30,12 @@ $(PSA).so : $(PSA).c
 
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
+	install -m 755 signal-auth-setup $(PREFIX)/bin/signal-auth-setup 
 	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
+	rm -f $(PREFIX)/bin/signal-auth-setup
 	deluser --system --quiet $(SIGNAL_USER)
 
 check-configs:
@@ -64,8 +69,6 @@ check-configs:
 		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
 	@stat ~/.signal_authenticator | grep -q "Gid:[[:space:]]*([[:space:]]*$(shell id -g)/" \
 		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
-	@grep -q "^username=+[0-9]\\+" ~/.signal_authenticator \
-		|| echo "username not found in ~/.signal_authenticator, watch out for stray spaces"
 	@grep -q "^recipient=+[0-9]\\+" ~/.signal_authenticator \
 		|| echo "recipient not found in ~/.signal_authenticator, watch out for stray spaces"
 clean:

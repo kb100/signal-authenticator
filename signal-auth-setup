@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# (C) James Murphy 2016, licensed under GPLv2
+#
+# Script to setup/opt in to signal authentication
+
+if ! command -v signal-cli >/dev/null 2>&1; then
+    echo >&2 "signal-cli not found, aborting."
+    exit 1
+fi
+
+SIGNAL_CLI="/usr/bin/env signal-cli"
+SIGNAL_HOME="/var/lib/signal-authenticator"
+
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    printf \
+"Usage: signal-auth-setup [-h|--help] [system [override]]
+Opt in to signal authentication.
+Options:
+[no argument]\tOpt in the current user for signal authentication.
+system\t\tSetup signal-authenticator's home. (root only)
+override\tDon't abort if config alerady exists.
+-h --help\tShow this help message.\n" && exit 0
+elif [[ "$1" == "system" ]]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo >&2 "Must be root to setup for the system user, aborting."
+        exit 1
+    fi
+
+    if [[ -f "$SIGNAL_HOME/.signal_authenticator" ]] || [[ -d "$SIGNAL_HOME/.signal" ]]; then
+        if [[ "$2" != "override" ]]; then
+            echo >&2 "It looks like signal-authenticator's home is already setup, aborting."
+            echo >&2 "Execute 'signal-auth-setup system override' as root to bypass."
+            echo >&2 "Bypassing will completely remove all previous"\
+                "configuration, including stored keys and fingerprints."
+            exit 2
+        else
+            echo >&2 "It looks like signal-authenticator's home is already setup, continuing anyway."
+        fi
+    fi
+
+    read -p "Input signal username to send tokens from (e.g. +15553331234): " USERNAME
+
+    echo "Creating $SIGNAL_HOME/.signal_authenticator"
+    echo "username=$USERNAME" > "$SIGNAL_HOME/.signal_authenticator"
+    chmod o-rwx "$SIGNAL_HOME/.signal_authenticator"
+    chown signal-authenticator:signal-authenticator "$SIGNAL_HOME/.signal_authenticator"
+
+    echo "Removing old config, if it exists"
+    rm -rf "$SIGNAL_HOME/.config/signal" >/dev/null 2>&1
+
+    echo "Registering signal username"
+    sudo -u signal-authenticator $SIGNAL_CLI -u "$USERNAME" register
+    read -p "Verify code (sent SMS to $USERNAME): " CODE
+    sudo -u signal-authenticator $SIGNAL_CLI -u "$USERNAME" verify "$CODE"
+    if [[ "$?" != "0" ]]; then
+        echo >&2 "Failed to verify $USERNAME, aborting."
+        exit 3
+    fi
+    chmod -R o-rwx "$SIGNAL_HOME/.config/signal"
+    chown -R signal-authenticator:signal-authenticator "$SIGNAL_HOME/.config/signal"
+    echo "Your signal authentication is now setup."
+else
+    read -p "Input signal username to receive tokens at, including country code (e.g. +15553331234): " USERNAME
+
+    echo "Creating ~/.signal_authenticator"
+    echo "recipient=$USERNAME" > "$HOME/.signal_authenticator"
+    chmod o-rwx "$HOME/.signal_authenticator"
+    echo "Remember to test sshing in before logging out to avoid lockout."
+    echo "If testing fails, delete .signal_authenticator."
+    echo "Your signal authentication is now setup."
+fi

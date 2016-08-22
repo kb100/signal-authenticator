@@ -51,35 +51,10 @@ make
 sudo make install
 ```
 
-Next register the signal-authenticator user's phone number with signal:
+Next setup the signal-authenticator user's signal number:
 
 ```
-sudo su signal-authenticator
-cd ~
-signal-cli -u +15551234567 register
-# registration CODE sent by OpenWhisperSystems to your SMS inbox
-signal-cli -u +15551234567 verify CODE
-```
-
-Then create `.signal_authenticator` in signal-authenticator's home directory
-with contents
-
-```
-username=+15551234567
-```
-
-where the username is the signal username (phone number) to send from (which
-was just registered).
-Empty lines and lines that begin with `#` are ignored.
-Do not include extra spaces anywhere on the line.
-
-Make sure the signal-authenticator user is the only one who can read the
-signal config and `.signal_authenticator` files:
-
-```
-chmod o-rwx ~/.signal_authenticator
-chmod -R o-rwx ~/.config/signal
-exit # we are done with the signal-authenticator user
+sudo signal-auth-setup system
 ```
 
 In order to require public key authentication + allow users to opt in to two-factor authentication,
@@ -132,26 +107,12 @@ Last login: Wed Jul 20 19:59:45 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
-To opt in, a user should create a file `.signal_authenticator` in their home directory
-with contents
-
+To opt in, a user should run
 ```
-recipient=+15559999999
+signal-auth-setup
 ```
-
-where recipient is the signal username (phone number) to send authentication tokens to.
-Multiple recipients can be specified on their own lines.
-Empty lines and lines that begin with `#` are ignored.
-Do not include extra spaces anywhere on the line.
-
-Since phone numbers are not necessarily public information,
-unless the `nostrictpermissions` option is passed to `pam_signal_authenticator.so`,
-a user must own their `.signal_authenticator` file
-and the file is not allowed to be read by other users.
-
-```
-chmod o-rwx ~/.signal_authenticator
-```
+which will ask them for their phone number and create the necessary
+`.signal_authenticator` file in their home directory.
 
 Now the user's two-factor authentication is enabled, and it should look
 something like:
@@ -288,6 +249,18 @@ not be able to distinguish between this authentication token
 versus any other signal message that you receive on your phone without doing
 some kind of traffic correlation attack.
 In any case, the tokens themselves are never seen by google.
+
+## Managing signal-authenticator manually
+
+signal-authenticator works simply by using signal-cli and keeping the config in
+the signal-authenticator user's home directory `/var/lib/signal-authenticator`.
+If you need to do things like trust a user's new key, remove a user from the
+trust store, or reset a session from the server side, you may get fine control
+by switching to the signal-authenticator user with `sudo su
+signal-authenticator` and using signal-cli manually.
+If you want to completely start over with a fresh config, new keys, and
+reregister signal, you can use `sudo signal-auth-setup system override`
+instead.
 
 ## Something didn't work?
 
