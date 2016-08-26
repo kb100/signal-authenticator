@@ -12,6 +12,21 @@ fi
 SIGNAL_CLI="/usr/bin/env signal-cli"
 SIGNAL_HOME="/var/lib/signal-authenticator"
 
+IFS="
+"
+function sanitize_phone_number {
+    echo "$1" | tr -cd "0123456789+"
+}
+
+function looks_like_phone_number {
+    if [[ "$1" =~ ^\+[0-9]+$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     printf \
 "Usage: signal-auth-setup [-h|--help] [system [override]]
@@ -40,7 +55,12 @@ elif [[ "$1" == "system" ]]; then
     fi
 
     read -p "Input signal username to send tokens from (e.g. +15553331234): " USERNAME
-
+    USERNAME=$(sanitize_phone_number $USERNAME)
+    echo "Sanitized number: $USERNAME"
+    if ! looks_like_phone_number $USERNAME; then
+        echo >&2 "Bad phone number: $USERNAME, aborting"
+        exit 4
+    fi
     echo "Creating $SIGNAL_HOME/.signal_authenticator"
     echo "username=$USERNAME" > "$SIGNAL_HOME/.signal_authenticator"
     chmod o-rwx "$SIGNAL_HOME/.signal_authenticator"
@@ -62,6 +82,12 @@ elif [[ "$1" == "system" ]]; then
     echo "Your signal authentication is now setup."
 else
     read -p "Input signal username to receive tokens at, including country code (e.g. +15553331234): " USERNAME
+    USERNAME=$(sanitize_phone_number $USERNAME)
+    echo "Sanitized number: $USERNAME"
+    if ! looks_like_phone_number $USERNAME; then
+        echo >&2 "Bad phone number: $USERNAME, aborting"
+        exit 4
+    fi
 
     echo "Creating ~/.signal_authenticator"
     echo "recipient=$USERNAME" > "$HOME/.signal_authenticator"
