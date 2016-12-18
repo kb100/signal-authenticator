@@ -54,7 +54,7 @@ sudo make install
 Next setup the signal-authenticator user's signal number:
 
 ```
-sudo signal-auth-setup system
+sudo signal-auth-setup
 ```
 
 In order to require public key authentication + allow users to opt in to two-factor authentication,
@@ -109,7 +109,7 @@ Last login: Wed Jul 20 19:59:45 2016 from 127.0.0.1
 
 To opt in, a user should run
 ```
-signal-auth-setup
+signal-auth-opt-in
 ```
 which will ask them for their phone number and create the necessary
 `.signal_authenticator` file in their home directory.
@@ -126,6 +126,37 @@ Authenticated with partial success.
 Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
+
+## Setup (share signal number across multiple systems)
+
+If you administrate multiple servers and would like to have
+signal-authenticator share a single real phone number for all of your servers, 
+this section is for you.
+
+Pick one of your machines as primary and follow the setup for the previous
+section on that machine.
+
+On all other machines follow the
+instructions of the previous section, except:
+use
+
+```
+sudo signal-auth-setup as-linked
+```
+
+which will provide a tsdevice:/... link.
+The program will hang until you complete the rest of the process.
+Copy this link and via a secure channel transmit it to the primary machine.
+On the primary machine run
+
+```
+sudo signal-auth-link add
+```
+
+which will prompt you to paste the tsdevice:/... link.
+The two devices will then link and the signal number is shared between the
+linked devices. The primary is the only one that can add or remove linked
+devices.
 
 ## How can I require other combinations of authentication?
 
@@ -259,7 +290,7 @@ trust store, or reset a session from the server side, you may get fine control
 by switching to the signal-authenticator user with `sudo su
 signal-authenticator` and using signal-cli manually.
 If you want to completely start over with a fresh config, new keys, and
-reregister signal, you can use `sudo signal-auth-setup system override`
+reregister signal, you can use `sudo signal-auth-setup override`
 instead.
 
 ## Something didn't work?

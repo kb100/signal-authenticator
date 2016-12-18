@@ -2,14 +2,14 @@
 #
 # (C) James Murphy 2016, licensed under GPLv2
 #
-# Script to setup/opt in to signal authentication
+# Script to setup system for signal authentication
 
 if ! command -v signal-cli >/dev/null 2>&1; then
     echo >&2 "signal-cli not found, aborting."
     exit 1
 fi
 
-SIGNAL_CLI="/usr/bin/env signal-cli"
+SIGNAL_CLI="$(which signal-cli)"
 SIGNAL_HOME="/var/lib/signal-authenticator"
 
 IFS="
@@ -26,73 +26,70 @@ function looks_like_phone_number {
     fi
 }
 
-
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     printf \
-"Usage: signal-auth-setup [-h|--help] [system [override]]
-Opt in to signal authentication.
+"Usage: signal-auth-setup [-h|--help] [as-linked] [override]
+Setup signal authentication on your system.
 Options:
-[no argument]\tOpt in the current user for signal authentication.
-system\t\tSetup signal-authenticator's home. (root only)
+[no argument]\tSetup the signal-authenticator user's home by registering a
+\t\tsignal number
+as-linked\tSetup the signal-authenticator user's home by linking as a
+\t\tsubordinate device of an existing signal authenticator.
 override\tDon't abort if config alerady exists.
 -h --help\tShow this help message.\n" && exit 0
-elif [[ "$1" == "system" ]]; then
-    if [[ "$(id -u)" -ne 0 ]]; then
-        echo >&2 "Must be root to setup for the system user, aborting."
-        exit 1
+fi
+
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo >&2 "Must be root to setup for the system user, aborting."
+    exit 1
+fi
+
+if [[ -f "$SIGNAL_HOME/.signal_authenticator" ]] || [[ -d "$SIGNAL_HOME/.signal" ]]; then
+    if [[ "$1" != "override" ]] && [[ "$2" != "override" ]]; then
+        echo >&2 "It looks like signal-authenticator's home is already setup, aborting."
+        echo >&2 "Use the override argument to bypass."
+        echo >&2 "Bypassing will completely remove all previous"\
+            "configuration, including stored keys and fingerprints."
+        exit 2
+    else
+        echo >&2 "It looks like signal-authenticator's home is already setup, continuing anyway."
     fi
+fi
 
-    if [[ -f "$SIGNAL_HOME/.signal_authenticator" ]] || [[ -d "$SIGNAL_HOME/.signal" ]]; then
-        if [[ "$2" != "override" ]]; then
-            echo >&2 "It looks like signal-authenticator's home is already setup, aborting."
-            echo >&2 "Execute 'signal-auth-setup system override' as root to bypass."
-            echo >&2 "Bypassing will completely remove all previous"\
-                "configuration, including stored keys and fingerprints."
-            exit 2
-        else
-            echo >&2 "It looks like signal-authenticator's home is already setup, continuing anyway."
-        fi
+read -p "Input signal username to send tokens from (e.g. +15553331234): " USERNAME
+USERNAME=$(sanitize_phone_number $USERNAME)
+echo "Sanitized number: $USERNAME"
+if ! looks_like_phone_number $USERNAME; then
+    echo >&2 "Bad phone number: $USERNAME, aborting"
+    exit 4
+fi
+echo "Creating $SIGNAL_HOME/.signal_authenticator"
+echo "username=$USERNAME" > "$SIGNAL_HOME/.signal_authenticator"
+chmod o-rwx "$SIGNAL_HOME/.signal_authenticator"
+chown signal-authenticator:signal-authenticator "$SIGNAL_HOME/.signal_authenticator"
+
+echo "Removing old config, if it exists"
+rm -rf "$SIGNAL_HOME/.config/signal" >/dev/null 2>&1
+
+echo "Registering signal username"
+if [[ "$1" == "as-linked" ]] || [[ "$2" == "as-linked" ]]; then
+    echo "Registering as subordinate (linked) device."
+    echo "To complete linking, you must run signal-auth-link from the primary device."
+    echo "It will ask for the following tsdevice:/ link."
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" link
+    if [[ "$?" != "0" ]]; then
+        echo >&2 "Failed to link, aborting."
+        exit 3
     fi
-
-    read -p "Input signal username to send tokens from (e.g. +15553331234): " USERNAME
-    USERNAME=$(sanitize_phone_number $USERNAME)
-    echo "Sanitized number: $USERNAME"
-    if ! looks_like_phone_number $USERNAME; then
-        echo >&2 "Bad phone number: $USERNAME, aborting"
-        exit 4
-    fi
-    echo "Creating $SIGNAL_HOME/.signal_authenticator"
-    echo "username=$USERNAME" > "$SIGNAL_HOME/.signal_authenticator"
-    chmod o-rwx "$SIGNAL_HOME/.signal_authenticator"
-    chown signal-authenticator:signal-authenticator "$SIGNAL_HOME/.signal_authenticator"
-
-    echo "Removing old config, if it exists"
-    rm -rf "$SIGNAL_HOME/.config/signal" >/dev/null 2>&1
-
-    echo "Registering signal username"
-    sudo -u signal-authenticator $SIGNAL_CLI -u "$USERNAME" register
+else
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" register
     read -p "Verify code (sent SMS to $USERNAME): " CODE
-    sudo -u signal-authenticator $SIGNAL_CLI -u "$USERNAME" verify "$CODE"
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" verify "$CODE"
     if [[ "$?" != "0" ]]; then
         echo >&2 "Failed to verify $USERNAME, aborting."
         exit 3
     fi
-    chmod -R o-rwx "$SIGNAL_HOME/.config/signal"
-    chown -R signal-authenticator:signal-authenticator "$SIGNAL_HOME/.config/signal"
-    echo "Your signal authentication is now setup."
-else
-    read -p "Input signal username to receive tokens at, including country code (e.g. +15553331234): " USERNAME
-    USERNAME=$(sanitize_phone_number $USERNAME)
-    echo "Sanitized number: $USERNAME"
-    if ! looks_like_phone_number $USERNAME; then
-        echo >&2 "Bad phone number: $USERNAME, aborting"
-        exit 4
-    fi
-
-    echo "Creating ~/.signal_authenticator"
-    echo "recipient=$USERNAME" > "$HOME/.signal_authenticator"
-    chmod o-rwx "$HOME/.signal_authenticator"
-    echo "Remember to test sshing in before logging out to avoid lockout."
-    echo "If testing fails, delete .signal_authenticator."
-    echo "Your signal authentication is now setup."
 fi
+chmod -R o-rwx "$SIGNAL_HOME/.config/signal"
+chown -R signal-authenticator:signal-authenticator "$SIGNAL_HOME/.config/signal"
+echo "Your signal authentication is now setup."

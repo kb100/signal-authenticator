@@ -31,11 +31,15 @@ $(PSA).so : $(PSA).c
 install:
 	install -m 644 $(PSA).so $(LIB_SECURITY_DIR)/$(PSA).so
 	install -m 755 signal-auth-setup $(PREFIX)/bin/signal-auth-setup 
+	install -m 755 signal-auth-link $(PREFIX)/bin/signal-auth-link 
+	install -m 755 signal-auth-opt-in $(PREFIX)/bin/signal-auth-opt-in 
 	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
 	rm -f $(PREFIX)/bin/signal-auth-setup
+	rm -f $(PREFIX)/bin/signal-auth-link
+	rm -f $(PREFIX)/bin/signal-auth-opt-in
 	deluser --system --quiet $(SIGNAL_USER)
 
 check-configs:

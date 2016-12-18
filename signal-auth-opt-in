@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# (C) James Murphy 2016, licensed under GPLv2
+#
+# Script for users to opt in a user for signal authentication
+
+IFS="
+"
+function sanitize_phone_number {
+    echo "$1" | tr -cd "0123456789+"
+}
+
+function looks_like_phone_number {
+    if [[ "$1" =~ ^\+[0-9]+$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    printf \
+"Usage: signal-auth-opt-in [-h|--help] [override]
+Opt in to signal authentication.
+Options:
+[no argument]\tOpt in the current user for signal authentication.
+override\tDon't abort if config alerady exists.
+-h --help\tShow this help message.\n" && exit 0
+fi
+
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "Warning: you are opting in the root user for signal authentication."
+    echo "If you meant to configure the system for signal authentication, use signal-auth-setup."
+fi
+
+if [[ -f "$HOME/.signal_authenticator" ]]; then
+    if [[ "$1" != "override" ]]; then
+        echo >&2 "It looks like you have already opted in for signal authentication." 
+        echo >&2 "Execute 'signal-auth-opt-in override' to override your old config."
+        exit 2
+    else
+        echo >&2 "It looks like signal-authenticator is already setup, continuing anyway."
+    fi
+fi
+
+read -p "Input signal username to receive tokens at, including country code (e.g. +15553331234): " USERNAME
+USERNAME=$(sanitize_phone_number $USERNAME)
+echo "Sanitized number: $USERNAME"
+if ! looks_like_phone_number $USERNAME; then
+    echo >&2 "Bad phone number: $USERNAME, aborting"
+    exit 4
+fi
+
+echo "Creating ~/.signal_authenticator"
+echo "recipient=$USERNAME" > "$HOME/.signal_authenticator"
+chmod o-rwx "$HOME/.signal_authenticator"
+echo "Remember to test sshing in before logging out to avoid lockout."
+echo "If testing fails or if you want to opt out, delete .signal_authenticator."
+echo "You have successfully opted in for signal authentication."

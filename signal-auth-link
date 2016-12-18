@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# (C) James Murphy 2016, licensed under GPLv2
+#
+# Script to setup/opt in to signal authentication
+
+if ! command -v signal-cli >/dev/null 2>&1; then
+    echo >&2 "signal-cli not found, aborting."
+    exit 1
+fi
+
+SIGNAL_CLI="$(which signal-cli)"
+SIGNAL_HOME="/var/lib/signal-authenticator"
+SIGNAL_AUTH_CONFIG="$SIGNAL_HOME/.signal_authenticator"
+
+IFS="
+"
+
+function sanitize_tsdevice_link {
+    echo "$1" | tr -d " "
+}
+
+
+function usage_and_exit {
+    printf \
+"Usage: signal-auth-link [-h|--help] add|list|remove
+Manage subordinate (linked) signal authenticator devices. Only the primary
+device can add or remove linked devices.
+Options:
+add\t\tAdd a subordinate signal authenticator device
+list\t\tList all subordinate devices
+remove\t\tRemove (revoke) a subordinate signal authenticator device
+-h --help\tShow this help message.\n" && exit 0
+}
+
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    usage_and_exit
+fi
+
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo >&2 "Must be root to manage system user's subordinate devices, aborting."
+    exit 1
+fi
+
+USERNAME=$(grep -o '+[[:digit:]]\+$' $SIGNAL_AUTH_CONFIG)
+
+if [[ "$1" == "list" ]]; then
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" listDevices
+elif [[ "$1" == "add" ]]; then
+    read -p "Paste tsdevice:/ link from running signal-auth-setup as-linked: " TSDEVICE_LINK
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" addDevice --uri "$TSDEVICE_LINK"
+elif [[ "$1" == "remove" ]]; then
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" listDevices
+    read -p "What is Device ID to remove? " DEVICE_ID
+    sudo -u signal-authenticator "$SIGNAL_CLI" -u "$USERNAME" removeDevice -d "$DEVICE_ID"
+else
+    usage_and_exit
+fi
