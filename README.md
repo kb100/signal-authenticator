@@ -14,7 +14,7 @@ See the [contributing page](CONTRIBUTING.md) for details.
 
 ## Requirements
 
-- A phone with signal installed
+- A phone with signal installed (for receiving 1-time tokens)
 - A different phone number (using a google voice number is fine)
 - [signal-cli](https://github.com/AsamK/signal-cli)
 - SSH server (assumed to be using publickey authentication already)
