@@ -16,7 +16,7 @@ See the [contributing page](CONTRIBUTING.md) for details.
 
 - A phone with signal installed (for receiving 1-time tokens)
 - A different phone number (using a google voice number is fine)
-- [signal-cli](https://github.com/AsamK/signal-cli)
+- [signal-cli](https://github.com/AsamK/signal-cli) (version >= 0.5.3)
 - SSH server (assumed to be using publickey authentication already)
 
 ## Options
@@ -37,7 +37,14 @@ two-factor authentication
 
 ## Setup
 
-Install [signal-cli](https://github.com/AsamK/signal-cli).
+Install [signal-cli](https://github.com/AsamK/signal-cli):
+
+```
+export VERSION=0.5.3
+wget https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
+sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
+sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/
+```
 
 Get the build dependencies, download, make, and install signal-authenticator:
 
