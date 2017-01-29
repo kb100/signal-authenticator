@@ -37,9 +37,11 @@ two-factor authentication
 
 ## Setup
 
-Install [signal-cli](https://github.com/AsamK/signal-cli):
+Install [signal-cli](https://github.com/AsamK/signal-cli) and java:
 
 ```
+sudo apt-get update
+sudo apt-get install default-jre
 export VERSION=0.5.3
 wget https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
 sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
