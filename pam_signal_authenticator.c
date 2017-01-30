@@ -45,7 +45,7 @@
 #define MAX_BUF_SIZE 1024
 #endif
 #ifndef TOKEN_LEN
-#define TOKEN_LEN 10
+#define TOKEN_LEN 13
 #endif
 #ifndef CONFIG_FILE
 #define CONFIG_FILE ".signal_authenticator"
@@ -57,9 +57,11 @@
 /*
  * signal-cli is called using system(), so DO NOT allow escape characters,
  * quotes, semicolons, etc. unless you sanitize the system call
+ *
+ * allowed chars length should be a factor of 256, suggested 32 or higher
  */
 #ifndef ALLOWED_CHARS
-#define ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyz"
+#define ALLOWED_CHARS "abcdefghijklmnpqrstuvwxyz1234567"
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
