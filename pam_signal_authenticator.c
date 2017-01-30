@@ -65,6 +65,14 @@
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
+#ifndef MESSAGE_PREFIX
+#define MESSAGE_PREFIX "1-time code: "
+#endif
+#ifndef MESSAGE_SUFFIX
+#define MESSAGE_SUFFIX ""
+#endif
+
+
 typedef struct params {
     bool nullok;
     bool strict_permissions;
@@ -310,9 +318,9 @@ int build_signal_command(
     const char *recipients = recipients_buf;
 
     ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE,
-            "%s -u %s send -m '%s' %s >/dev/null 2>&1 &&"
+            "%s -u %s send -m '%s%s%s' %s >/dev/null 2>&1 &&"
             "%s -u %s receive --ignore-attachments >/dev/null 2>&1 &",
-            SIGNAL_CLI, username, token, recipients,
+            SIGNAL_CLI, username, MESSAGE_PREFIX, token, MESSAGE_SUFFIX, recipients,
             SIGNAL_CLI, username);
     if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
         if (!params->silent)
