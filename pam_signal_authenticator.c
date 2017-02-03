@@ -319,7 +319,7 @@ int build_signal_command(
 
     ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE,
             "%s -u %s send -m '%s%s%s' %s >/dev/null 2>&1 &&"
-            "%s -u %s receive --ignore-attachments >/dev/null 2>&1 &",
+            "%s -u %s receive -t 0 --ignore-attachments >/dev/null 2>&1 &",
             SIGNAL_CLI, username, MESSAGE_PREFIX, token, MESSAGE_SUFFIX, recipients,
             SIGNAL_CLI, username);
     if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
