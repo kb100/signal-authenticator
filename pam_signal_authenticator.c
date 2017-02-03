@@ -151,7 +151,9 @@ int drop_privileges(struct passwd *pw) {
     return PAM_SUCCESS;
 }
 
-// token will match [a-z]{TOKEN_LEN}
+// Will be TOKEN_LEN many characters from ALLOWED_CHARS
+// Result is uniform string in ALLOWED_CHARS as long as
+// ALLOWED_CHARS_LEN is a divisor of 256
 int generate_random_token(char token_buf[TOKEN_LEN+1]) {
     FILE *urandom = fopen("/dev/urandom", "r");
     if (urandom == NULL) {
