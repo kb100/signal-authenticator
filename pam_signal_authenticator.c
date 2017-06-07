@@ -18,6 +18,7 @@
 #include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,13 +72,50 @@
 #ifndef MESSAGE_SUFFIX
 #define MESSAGE_SUFFIX ""
 #endif
-
+#ifndef MAX_RECIPIENTS
+#define MAX_RECIPIENTS 5
+#endif
+#ifndef MAX_USERNAME_LEN
+#define MAX_USERNAME_LEN 32
+#endif
 
 typedef struct params {
     bool nullok;
     bool strict_permissions;
     bool silent;
 } Params;
+
+int print_array(pam_handle_t *pamh, const char *ptr[], size_t len) {
+    pam_syslog(pamh, LOG_ERR, "Printing");
+    for(size_t i=0; i <len; i++)
+        if (ptr[i])
+            pam_syslog(pamh, LOG_ERR, "%i, %s", i, ptr[i]);
+        else
+            pam_syslog(pamh, LOG_ERR, "%i, empty", i);
+    pam_syslog(pamh, LOG_ERR, "Done Printing");
+    return PAM_SUCCESS;
+}
+
+int free_str_array(char *ptr[], size_t len) {
+    for (size_t i=0; i<len; i++) {
+        if (ptr[i]) {
+            free(ptr[i]);
+        }
+    }
+    return PAM_SUCCESS;
+}
+
+int malloc_array(char *arr[], size_t arr_len, size_t len_to_malloc) {
+    for (size_t i=0; i<arr_len; i++) {
+        arr[i] = calloc(len_to_malloc, sizeof(char));
+        if (!arr[i]) {
+            free_str_array(arr, i);
+            return PAM_AUTH_ERR;
+        }
+    }
+    return PAM_SUCCESS;
+}
+
 
 int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     if (home_dir == NULL || fn_buf == NULL) {
@@ -86,6 +124,19 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
     int snp_ret = snprintf(fn_buf, buf_size,
             "%s/"CONFIG_FILE, home_dir);
+    if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
+        return PAM_AUTH_ERR;
+    }
+    return PAM_SUCCESS;
+}
+
+int make_message(const char *token, char message_buf[MAX_BUF_SIZE]) {
+    if (token == NULL || message_buf == NULL) {
+        return PAM_AUTH_ERR;
+    }
+    size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
+    int snp_ret = snprintf(message_buf, buf_size,
+            "%s%s%s", MESSAGE_PREFIX, token, MESSAGE_SUFFIX);
     if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
         return PAM_AUTH_ERR;
     }
@@ -160,7 +211,7 @@ int generate_random_token(char token_buf[TOKEN_LEN+1]) {
         return PAM_AUTH_ERR;
     }
     unsigned char c;
-    for(int i = 0; i < TOKEN_LEN; i++) {
+    for (size_t i = 0; i < TOKEN_LEN; i++) {
         c = fgetc(urandom);
         token_buf[i] = ALLOWED_CHARS[c % ALLOWED_CHARS_LEN];
     }
@@ -176,7 +227,7 @@ bool looks_like_phone_number(const char *str) {
         return false;
     }
     int len = strlen(str);
-    if (len == 0 || len > 20){
+    if (len == 0 || len > MAX_USERNAME_LEN){
         return false;
     }
     while (*str) {
@@ -188,7 +239,7 @@ bool looks_like_phone_number(const char *str) {
     return true;
 }
 
-int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF_SIZE]) {
+int parse_signal_username(const char *config_filename, char username_buf[MAX_USERNAME_LEN+1]) {
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
         return PAM_AUTH_ERR;
@@ -196,7 +247,7 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
 
     bool username_found = false;
     char line_buf[MAX_BUF_SIZE] = {0};
-    while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
+    while (!username_found && fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
         int len = strlen(line_buf);
         if (line_buf[len-1] != '\n') {
            return PAM_AUTH_ERR;
@@ -215,8 +266,12 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
                 }
                 line += strlen("username=");
                 if (looks_like_phone_number(line)) {
-                    strncpy(username_buf, line, strlen(line));
+                    // it is known here that strlen(line) <= MAX_USERNAME_LEN
+                    strncpy(username_buf, line, MAX_USERNAME_LEN+1);
                     username_found = true;
+                }
+                else {
+                    goto error;
                 }
                 break;
             // ignore garbage
@@ -236,14 +291,13 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_BUF
     }
 }
 
-int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX_BUF_SIZE]){
+int parse_signal_recipients(const char *config_filename, char *recipients_arr[MAX_RECIPIENTS]){
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
         return PAM_AUTH_ERR;
     }
 
     int recipient_count = 0;
-    int recipients_strlen = 0;
     char line_buf[MAX_BUF_SIZE] = {0};
     while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
         int len = strlen(line_buf);
@@ -264,27 +318,29 @@ int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX
                 }
                 line += strlen("recipient=");
                 if (looks_like_phone_number(line)) {
-                    int recipient_len = strlen(line);
-                    int new_strlen = recipient_len + recipients_strlen + 1;
-                    // too many recipients?
-                    if (new_strlen+1 >= MAX_BUF_SIZE) {
+                    int username_len = strlen(line);
+                    recipients_arr[recipient_count] = calloc(username_len+1, sizeof(char));
+                    if (!recipients_arr[recipient_count]) {
                         goto error;
                     }
-                    strcpy(recipients_buf+recipients_strlen, line);
-                    recipients_buf[new_strlen-1] = ' ';
-                    recipients_strlen = new_strlen;
-                    recipient_count++;
+                    strcpy(recipients_arr[recipient_count++], line);
+                }
+                else {
+                    goto error;
                 }
                 break;
             default:
                 break;
         }
+        // if the user specified more than MAX_RECIPIENTS recipients, just use
+        // the first few
+        if (recipient_count == MAX_RECIPIENTS) {
+            break;
+        }
     }
     if (fclose(config_fp) != 0 || recipient_count == 0) {
         return PAM_AUTH_ERR;
     }
-
-    recipients_buf[recipients_strlen-1] = '\0';
 
     return PAM_SUCCESS;
 
@@ -294,43 +350,114 @@ int parse_signal_recipients(const char *config_filename, char recipients_buf[MAX
     }
 }
 
-int build_signal_command(
-        pam_handle_t *pamh,
-        const Params *params,
-        const char *config_filename,
-        const char *signal_config_filename,
-        const char *token,
-        char signal_cmd_buf[MAX_BUF_SIZE]) {
-    int ret;
-    char username_buf[MAX_BUF_SIZE] = {0};
-
-    if ((ret = parse_signal_username(signal_config_filename, username_buf)) != PAM_SUCCESS) {
-        if (!params->silent)
-            pam_syslog(pamh, LOG_ERR, "Failed to parse username from config");
+int build_signal_send_command(
+        const char *sender,
+        char *recipients[MAX_RECIPIENTS],
+        const char *message,
+        const char *args[6+MAX_RECIPIENTS+1]) {
+    if (sender == NULL || recipients == NULL || message == NULL || args == NULL) {
         return PAM_AUTH_ERR;
     }
-    const char *username = username_buf;
+    args[0] = "signal-cli";
+    args[1] = "-u";
+    args[2] = sender;
+    args[3] = "send";
+    args[4] = "-m";
+    args[5] = message;
+    for (size_t i = 6; i < 6+MAX_RECIPIENTS; i++) {
+        if (recipients[i-6] && recipients[i-6][0]) {
+            args[i] = recipients[i-6];
+        }
+        else {
+            args[i] = (const char *)NULL;
+            break;
+        }
+    }
+    args[6+MAX_RECIPIENTS] = (const char *)NULL;
+    return PAM_SUCCESS;
+}
 
-    char recipients_buf[MAX_BUF_SIZE] = {0};
-    if ((ret = parse_signal_recipients(config_filename, recipients_buf)) != PAM_SUCCESS) {
-        if (!params->silent)
-            pam_syslog(pamh, LOG_ERR, "Failed to parse recipients from config");
+int build_signal_receive_command(
+        const char *username,
+        const char *args[8]) {
+    if (username == NULL || args == NULL) {
         return PAM_AUTH_ERR;
     }
-    const char *recipients = recipients_buf;
+    args[0] = "signal-cli";
+    args[1] = "-u";
+    args[2] = username;
+    args[3] = "receive";
+    args[4] = "-t";
+    args[5] = "0";
+    args[6] = "--ignore-attachments";
+    args[7] = (const char *)NULL;
+    return PAM_SUCCESS;
+}
 
-    ret = snprintf(signal_cmd_buf, MAX_BUF_SIZE,
-            "%s -u %s send -m '%s%s%s' %s >/dev/null 2>&1 &&"
-            "%s -u %s receive -t 0 --ignore-attachments >/dev/null 2>&1 &",
-            SIGNAL_CLI, username, MESSAGE_PREFIX, token, MESSAGE_SUFFIX, recipients,
-            SIGNAL_CLI, username);
-    if (ret < 0 || (size_t)ret >= sizeof(char[MAX_BUF_SIZE])) {
+int signal_cli(pam_handle_t *pamh, const Params *params,
+        struct passwd *drop_pw, char *const argv[]) {
+    pid_t c_pid;
+    int status;
+
+    c_pid = fork();
+
+    if (c_pid == 0) {
+        // child
+        if (drop_privileges(drop_pw) != PAM_SUCCESS ) {
+            exit(EXIT_FAILURE);
+        }
+        int fdnull = open("/dev/null", O_RDWR);
+        if (fdnull) {
+            bool failure = false;
+            failure |= dup2(fdnull, STDIN_FILENO) < 0;
+            failure |= dup2(fdnull, STDOUT_FILENO) < 0;
+            failure |= dup2(fdnull, STDERR_FILENO) < 0;
+            if (close(fdnull) != 0 || failure) {
+                exit(EXIT_FAILURE);
+            }
+        }
+        else {
+            exit(EXIT_FAILURE);
+        }
+        execv(SIGNAL_CLI, argv);
+    }
+    else if (c_pid <  0) {
+        // error
         if (!params->silent)
-            pam_syslog(pamh, LOG_ERR, "Failed to snprintf the signal command");
+            pam_syslog(pamh, LOG_ERR, "failed to fork child for sending message");
+        return PAM_AUTH_ERR;
+    }
+    // parent
+    wait(&status);
+
+    if(!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
         return PAM_AUTH_ERR;
     }
 
     return PAM_SUCCESS;
+}
+
+int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE]) {
+    char *response = NULL;
+    int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "1-time code: ");
+    if (ret != PAM_SUCCESS) {
+        if (ret == PAM_BUF_ERR && !params->silent){
+            pam_syslog(pamh, LOG_ERR, "Possible malicious attempt, PAM_BUF_ERR.");
+        }
+        return ret;
+    }
+
+    if (response) {
+        strncpy(response_buf, response, MAX_BUF_SIZE);
+        free(response);
+        if (response_buf[MAX_BUF_SIZE-1] != '\0' ) {
+            if (!params->silent)
+                pam_syslog(pamh, LOG_ERR, "Possible malicious attempt, response way too long.");
+            return PAM_AUTH_ERR;
+        }
+        return PAM_SUCCESS;
+    }
+    return PAM_CONV_ERR;
 }
 
 int send_signal_msg_and_wait_for_response(pam_handle_t *pamh, const Params *params,
@@ -479,39 +606,84 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     // or the sysadmin requires 2fa
     // (though the user or admin may still have an invalid config file)
     // from here on failures should err on the side of denying access
+    
+    char username_buf[MAX_USERNAME_LEN+1] = {0};
+    if (parse_signal_username(signal_config_filename, username_buf) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to parse sender username from config");
+        goto cleanup_then_return_error;
+    }
+    const char *username = username_buf;
 
     char token_buf[TOKEN_LEN+1] = {0};
-    if ((ret = generate_random_token(token_buf)) != PAM_SUCCESS) {
+    if (generate_random_token(token_buf) != PAM_SUCCESS) {
         if (!params->silent)
             pam_syslog(pamh, LOG_ERR, "failed to generate random token");
-        return ret;
+        goto cleanup_then_return_error;
     }
     const char *token = token_buf;
 
-    char signal_cmd_buf[MAX_BUF_SIZE] = {0};
-    ret = build_signal_command(pamh, params, config_filename, signal_config_filename, token, signal_cmd_buf);
-    if (ret != PAM_SUCCESS) {
+    char message_buf[MAX_BUF_SIZE] = {0};
+    if (make_message(token, message_buf) != PAM_SUCCESS) {
         if (!params->silent)
-            pam_syslog(pamh, LOG_ERR, "failed to build signal command");
-        return ret;
+            pam_syslog(pamh, LOG_ERR, "failed to make message from token");
+        goto cleanup_then_return_error;
     }
-    const char *signal_cmd = signal_cmd_buf;
+    const char *message = message_buf;
 
-    char response_buf[MAX_BUF_SIZE] = {0};
-    ret = send_signal_msg_and_wait_for_response(pamh, params, signal_pw, signal_cmd, response_buf);
+    char *recipients_arr[MAX_RECIPIENTS] = {0};
+    if (parse_signal_recipients(config_filename, recipients_arr) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to parse recipients from config");
+        goto cleanup_then_return_error;
+    }
+    print_array(pamh, (const char **)recipients_arr, MAX_RECIPIENTS);
+
+    const char *signal_send_args_arr[6+MAX_RECIPIENTS+1] = {0};
+    ret = build_signal_send_command(username, recipients_arr, message, signal_send_args_arr);
     if (ret != PAM_SUCCESS) {
         if (!params->silent)
-            pam_syslog(pamh, LOG_ERR, "failed to send signal message or get response");
-        return PAM_AUTH_ERR;
+            pam_syslog(pamh, LOG_ERR, "Failed to build signal send command");
+        goto cleanup_then_return_error;
+    }
+    print_array(pamh, signal_send_args_arr, 6+MAX_RECIPIENTS+1);
+    char * const * signal_send_args = (char * const *)signal_send_args_arr;
+
+    const char *signal_receive_args_arr[8];
+    if (build_signal_receive_command(username, signal_receive_args_arr) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "Failed to build signal receive command");
+        goto cleanup_then_return_error;
+    }
+
+    char * const * signal_receive_args = (char * const *)signal_receive_args_arr;
+    if (signal_cli(pamh, params, signal_pw, signal_receive_args) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "signal-cli receive command failed");
+        goto cleanup_then_return_error;
+    }
+
+    if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "signal-cli send command failed");
+        goto cleanup_then_return_error;
+    }
+    
+    char response_buf[MAX_BUF_SIZE] = {0};
+    if (wait_for_response(pamh, params, response_buf) != PAM_SUCCESS) {
+        if (!params->silent)
+            pam_syslog(pamh, LOG_ERR, "failed response");
+        goto cleanup_then_return_error;
     }
     const char *response = response_buf;
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
         if (!params->silent)
             pam_syslog(pamh, LOG_ERR, "incorrect token");
-        return PAM_AUTH_ERR;
+        goto cleanup_then_return_error;
     }
 
+    free_str_array(recipients_arr, MAX_RECIPIENTS);
     return PAM_SUCCESS;
 
     null_failure : {
@@ -520,6 +692,11 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         }
         return NULL_FAILURE;
     }
+
+    cleanup_then_return_error : {
+        free_str_array(recipients_arr, MAX_RECIPIENTS);
+        return PAM_AUTH_ERR;
+   }
 }
 
 /*
