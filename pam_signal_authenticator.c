@@ -415,7 +415,7 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
     // parent
     wait(&status);
 
-    if(!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
         return PAM_AUTH_ERR;
     }
 
@@ -606,7 +606,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     }
     const char *response = response_buf;
 
-    if(params-> timed) {
+    if (params->timed) {
         clock_gettime(CLOCK_MONOTONIC, &completed_time);
         if (completed_time.tv_sec > sent_time.tv_sec + TOKEN_TIME_TO_EXPIRE) {
             error(pamh, params, "took too long to respond, token expired");
@@ -614,7 +614,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         }
     }
 
-    if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
+    if (strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
         error(pamh, params, "incorrect token");
         goto cleanup_then_return_error;
     }
