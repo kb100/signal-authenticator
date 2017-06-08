@@ -93,17 +93,6 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
     va_end(ap);
 }
 
-int print_array(pam_handle_t *pamh, const char *ptr[], size_t len) {
-    pam_syslog(pamh, LOG_ERR, "Printing");
-    for(size_t i=0; i <len; i++)
-        if (ptr[i])
-            pam_syslog(pamh, LOG_ERR, "%i, %s", i, ptr[i]);
-        else
-            pam_syslog(pamh, LOG_ERR, "%i, empty", i);
-    pam_syslog(pamh, LOG_ERR, "Done Printing");
-    return PAM_SUCCESS;
-}
-
 void free_str_array(char *ptr[], size_t len) {
     for (size_t i=0; i<len; i++) {
         if (ptr[i]) {
@@ -426,9 +415,9 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 
 int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE]) {
     char *response = NULL;
-    int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "1-time code: ");
+    int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "Input 1-time code: ");
     if (ret != PAM_SUCCESS) {
-        if(response) {
+        if (response) {
             free(response);
         }
         if (ret == PAM_BUF_ERR) {
