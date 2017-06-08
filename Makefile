@@ -42,39 +42,6 @@ uninstall:
 	rm -f $(PREFIX)/bin/signal-auth-opt-in
 	deluser --system --quiet $(SIGNAL_USER)
 
-check-configs:
-	@echo "Checking /etc/ssh/sshd_config"
-	@grep -q "^AuthenticationMethods publickey,keyboard-interactive:pam" /etc/ssh/sshd_config \
-		|| echo "AuthenticationMethods does not match"
-	@grep -q "^RSAAuthentication yes" /etc/ssh/sshd_config \
-		|| echo "RSAAuthentication does not match"
-	@grep -q "^AuthorizedKeysFile" /etc/ssh/sshd_config \
-		|| echo "AuthorizedKeysFile line not present"
-	@grep -q "^PubkeyAuthentication yes" /etc/ssh/sshd_config \
-		|| echo "PubkeyAuthentication does not match"
-	@grep -q "^ChallengeResponseAuthentication yes" /etc/ssh/sshd_config \
-		|| echo "ChallengeResponseAuthentication does not match"
-	@grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config \
-		|| echo "PasswordAuthentication does not match"
-	@grep -q "^UsePAM yes" /etc/ssh/sshd_config \
-		|| echo "UsePAM does not match"
-	@echo "Checking /etc/pam.d/sshd_config"
-	@grep -q -v "^[^#]\\+@include common-auth" /etc/pam.d/sshd \
-		|| echo "@include common-auth not commented out"
-	@grep -q "^auth[[:space:]]*required[[:space:]]pam_permit.so" /etc/pam.d/sshd \
-		|| echo "pam_permit.so not found in config"
-	@grep -q "^auth[[:space:]]*required[[:space:]]pam_signal_authenticator.so" /etc/pam.d/sshd \
-		|| echo "pam_signal_authenticator.so not found in config"
-	@echo "Checking ~/.signal_authenticator"
-	@stat ~/.signal_authenticator 2>&1 >/dev/null || echo "~/.signal_authenticator not found"
-	@stat ~/.signal_authenticator | grep -q -- "-[rwx-]\{6\}---" \
-		|| echo "Need to chmod o-rwx ~/.signal_authenticator"
-	@stat ~/.signal_authenticator | grep -q "Uid:[[:space:]]*([[:space:]]*$(shell id -u)/" \
-		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
-	@stat ~/.signal_authenticator | grep -q "Gid:[[:space:]]*([[:space:]]*$(shell id -g)/" \
-		|| echo "Need to chown $(shell id -u -n):$(shell id -g -n) ~/.signal_authenticator"
-	@grep -q "^recipient=+[0-9]\\+" ~/.signal_authenticator \
-		|| echo "recipient not found in ~/.signal_authenticator, watch out for stray spaces"
 clean:
 	rm -f pam_signal_authenticator.so
 
