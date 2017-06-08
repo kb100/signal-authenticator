@@ -216,7 +216,7 @@ bool looks_like_phone_number(const char *str) {
         return false;
     }
     int len = strlen(str);
-    if (len == 0 || len > MAX_USERNAME_LEN){
+    if (len == 0 || len > MAX_USERNAME_LEN) {
         return false;
     }
     while (*str) {
@@ -428,6 +428,9 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
     char *response = NULL;
     int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "1-time code: ");
     if (ret != PAM_SUCCESS) {
+        if(response) {
+            free(response);
+        }
         if (ret == PAM_BUF_ERR) {
             error(pamh, params, "Possible malicious attempt, PAM_BUF_ERR.");
         }
