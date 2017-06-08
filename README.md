@@ -31,6 +31,8 @@ authentication, does not apply if user tried to opt in but has a bad config
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
+`timed` tokens expire after 90 seconds
+
 `silent` no warnings or errors will be written to the system log
 
 `debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM

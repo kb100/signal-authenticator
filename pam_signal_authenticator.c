@@ -27,6 +27,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #define PAM_SM_ACCOUNT
 #define PAM_SM_AUTH
@@ -47,6 +48,9 @@
 #endif
 #ifndef TOKEN_LEN
 #define TOKEN_LEN 13
+#endif
+#ifndef TOKEN_TIME_TO_EXPIRE
+#define TOKEN_TIME_TO_EXPIRE 90
 #endif
 #ifndef CONFIG_FILE
 #define CONFIG_FILE ".signal_authenticator"
@@ -87,6 +91,7 @@ typedef struct params {
     bool nullok;
     bool strict_permissions;
     bool silent;
+    bool timed;
 } Params;
 
 void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
@@ -450,7 +455,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     Params params_s = {
         .nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
         .strict_permissions = true,
-        .silent = flags & PAM_SILENT
+        .silent = flags & PAM_SILENT,
+        .timed = false
     };
     Params *params = &params_s;
 
@@ -470,6 +476,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         }
         else if (strcmp(arg, "debug") == 0) {
             params->silent = false;
+        }
+        else if (strcmp(arg, "timed") == 0) {
+            params->timed = true;
         }
         else {
             pam_syslog(pamh, LOG_ERR, "Aborting due to unknown option: %s", arg);
@@ -558,7 +567,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         error(pamh, params, "Failed to parse recipients from config");
         goto cleanup_then_return_error;
     }
-    print_array(pamh, (const char **)recipients_arr, MAX_RECIPIENTS);
 
     const char *signal_send_args_arr[6+MAX_RECIPIENTS+1] = {0};
     ret = build_signal_send_command(username, recipients_arr, message, signal_send_args_arr);
@@ -566,7 +574,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         error(pamh, params, "Failed to build signal send command");
         goto cleanup_then_return_error;
     }
-    print_array(pamh, signal_send_args_arr, 6+MAX_RECIPIENTS+1);
     char * const * signal_send_args = (char * const *)signal_send_args_arr;
 
     const char *signal_receive_args_arr[8];
@@ -581,6 +588,12 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         goto cleanup_then_return_error;
     }
 
+    struct timespec sent_time, completed_time;
+    if (params->timed) {
+        clock_gettime(CLOCK_MONOTONIC, &sent_time);
+        pam_info(pamh, "Token expires in %i seconds.", TOKEN_TIME_TO_EXPIRE);
+    }
+
     if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
         error(pamh, params, "signal-cli send command failed");
         goto cleanup_then_return_error;
@@ -592,6 +605,14 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         goto cleanup_then_return_error;
     }
     const char *response = response_buf;
+
+    if(params-> timed) {
+        clock_gettime(CLOCK_MONOTONIC, &completed_time);
+        if (completed_time.tv_sec > sent_time.tv_sec + TOKEN_TIME_TO_EXPIRE) {
+            error(pamh, params, "took too long to respond, token expired");
+            goto cleanup_then_return_error;
+        }
+    }
 
     if(strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
         error(pamh, params, "incorrect token");
