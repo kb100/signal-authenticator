@@ -66,11 +66,15 @@
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
-#ifndef MESSAGE_PREFIX
-#define MESSAGE_PREFIX "1-time code: "
+
+#ifndef SSH_PROMPT
+#define SSH_PROMPT "Input 1-time code: "
 #endif
-#ifndef MESSAGE_SUFFIX
-#define MESSAGE_SUFFIX ""
+#ifndef SIGNAL_MESSAGE_PREFIX
+#define SIGNAL_MESSAGE_PREFIX "1-time code: "
+#endif
+#ifndef SIGNAL_MESSAGE_SUFFIX
+#define SIGNAL_MESSAGE_SUFFIX ""
 #endif
 #ifndef MAX_RECIPIENTS
 #define MAX_RECIPIENTS 5
@@ -120,7 +124,7 @@ int make_message(const char *token, char message_buf[MAX_BUF_SIZE]) {
     }
     size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
     int snp_ret = snprintf(message_buf, buf_size,
-            "%s%s%s", MESSAGE_PREFIX, token, MESSAGE_SUFFIX);
+            "%s%s%s", SIGNAL_MESSAGE_PREFIX, token, SIGNAL_MESSAGE_SUFFIX);
     if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
         return PAM_AUTH_ERR;
     }
@@ -415,7 +419,7 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 
 int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE]) {
     char *response = NULL;
-    int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, "Input 1-time code: ");
+    int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, SSH_PROMPT);
     if (ret != PAM_SUCCESS) {
         if (response) {
             free(response);
