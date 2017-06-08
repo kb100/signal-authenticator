@@ -62,7 +62,7 @@
  * allowed chars length should be a factor of 256, suggested 32 or higher
  */
 #ifndef ALLOWED_CHARS
-#define ALLOWED_CHARS "abcdefghijklmnpqrstuvwxyz1234567"
+#define ALLOWED_CHARS "abcdefghijkmnpqrstuvwxyz12345678"
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
 
@@ -92,7 +92,6 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
         pam_vsyslog(pamh, LOG_ERR, msg, ap);
     va_end(ap);
 }
-
 
 int print_array(pam_handle_t *pamh, const char *ptr[], size_t len) {
     pam_syslog(pamh, LOG_ERR, "Printing");
