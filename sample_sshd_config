@@ -36,7 +36,6 @@ PermitRootLogin no
 #MaxSessions 10
 
 AuthenticationMethods publickey,keyboard-interactive:pam
-RSAAuthentication yes
 PubkeyAuthentication yes
 
 # The default is to check both .ssh/authorized_keys and .ssh/authorized_keys2

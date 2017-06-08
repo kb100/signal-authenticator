@@ -80,7 +80,6 @@ the important options for `/etc/ssh/sshd_config` are
 # If you want to make sure it works before going live only listen to localhost
 # ListenAddress 127.0.0.1
 AuthenticationMethods publickey,keyboard-interactive:pam
-RSAAuthentication yes
 PubkeyAuthentication yes
 AuthorizedKeysFile	%h/.ssh/authorized_keys
 ChallengeResponseAuthentication yes
