@@ -21,21 +21,21 @@ See the [contributing page](CONTRIBUTING.md) for details.
 
 ## Options
 
-`nullok` (recommended) allows users who have not opted in to bypass signal
+`--nullok` (recommended) allows users who have not opted in to bypass signal
 authentication, does not apply if user tried to opt in but has a bad config
 
-`nonull` requires all users to have properly setup signal authentication
+`--nonull` requires all users to have properly setup signal authentication
 (high chance of user locking themselves out of ssh)
 
-`nostrictpermissions` (not recommended) allows users to make bad choices about 
+`--nostrictpermissions` (not recommended) allows users to make bad choices about 
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
-`timed` tokens expire after 90 seconds
+`--timed` tokens expire after 90 seconds
 
-`silent` no warnings or errors will be written to the system log
+`--silent` no warnings or errors will be written to the system log
 
-`debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
+`--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
 ## Setup
 
@@ -96,7 +96,7 @@ and for `/etc/pam.d/sshd`
 # we have disabled PasswordAuthentication
 # @include common-auth
 auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok
+auth    required        pam_signal_authenticator.so --nullok
 ```
 
 Note: PAM config files are are more like scripts,
@@ -187,7 +187,7 @@ from what was described above are shown.
 ```
 #@include common-auth
 auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok 
+auth	required	pam_signal_authenticator.so --nullok 
 ```
 
 `/etc/ssh/sshd_config`
@@ -201,7 +201,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok 
+auth	required	pam_signal_authenticator.so --nullok 
 ```
 
 `/etc/ssh/sshd_config`
@@ -231,7 +231,7 @@ AuthenticationMethods publickey keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok 
+auth	required	pam_signal_authenticator.so --nullok 
 ```
 
 `/etc/ssh/sshd_config`

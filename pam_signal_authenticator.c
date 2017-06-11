@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -460,33 +461,66 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     };
     Params *params = &params_s;
 
-    while (argc > 0) {
-        const char *arg = *argv;
-        if (strcmp(arg, "nullok") == 0) {
+    int c;
+    int idx = -1;
+    opterr = 0; //global
+    while (1) {
+        static const char optstring[] = "+nNpsdt";
+        static struct option options[] = {
+            {"nullok",              0, 0, 'n'},
+            {"nonull",              0, 0, 'N'},
+            {"nostrictpermissions", 0, 0, 'p'},
+            {"silent",              0, 0, 's'},
+            {"debug",               0, 0, 'd'},
+            {"timed",               0, 0, 't'},
+            {0, 0, 0, 0}
+        };
+
+        c = getopt_long(argc, (char * const *)argv, optstring, options, &idx);
+        if (c > 0) {
+            for (size_t i = 0; options[i].name; i++) {
+                if (options[i].val == c) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+        else if (c < 0) {
+            break;
+        }
+        if (idx < 0) {
+            pam_syslog(pamh, LOG_ERR, "Aborting due to unknown option: %s", optstring);
+            return PAM_AUTH_ERR;
+        }
+        else if (!idx--) { //nullok
             params->nullok = true;
         }
-        else if (strcmp(arg, "nonull") == 0) {
+        else if (!idx--) { //nonull
             params->nullok = false;
         }
-        else if (strcmp(arg, "nostrictpermissions") == 0) {
+        else if (!idx--) { //nostrictpermissions
             params->strict_permissions = false;
         }
-        else if (strcmp(arg, "silent") == 0) {
+        else if (!idx--) { //silent
             params->silent = true;
         }
-        else if (strcmp(arg, "debug") == 0) {
+        else if (!idx--) { //debug
             params->silent = false;
         }
-        else if (strcmp(arg, "timed") == 0) {
+        else if (!idx--) { //timed
             params->timed = true;
         }
         else {
-            pam_syslog(pamh, LOG_ERR, "Aborting due to unknown option: %s", arg);
+            pam_syslog(pamh, LOG_ERR, "Error processing command line arguments, aborting");
             return PAM_AUTH_ERR;
         }
-        argc--;
-        argv++;
     }
+    if (optind != argc) {
+        pam_syslog(pamh, LOG_ERR, "Non-option argument given, did you forget --? Aborting");
+        return PAM_AUTH_ERR;
+    }
+
+
     int NULL_FAILURE = params->nullok? PAM_SUCCESS : PAM_AUTH_ERR;
 
     //determine the user

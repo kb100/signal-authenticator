@@ -6,7 +6,7 @@
 # we have disabled PasswordAuthentication
 # @include common-auth
 auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so nullok
+auth    required        pam_signal_authenticator.so --nullok
 
 # Disallow non-root logins when /etc/nologin exists.
 account    required     pam_nologin.so
