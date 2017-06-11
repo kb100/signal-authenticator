@@ -220,7 +220,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 ```
 @include common-auth
 #auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so nullok 
+auth	required	pam_signal_authenticator.so --nullok 
 ```
 
 `/etc/ssh/sshd_config`
