@@ -37,6 +37,11 @@ two-factor authentication
 
 `--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
+`--allowed-chars [chars]` tokens will be made up of these characters only. The
+number of allowed characters must be a divisor of 256.
+
+`--token-len [n]` sets length of 1-time tokens.
+
 ## Setup
 
 Install [signal-cli](https://github.com/AsamK/signal-cli) and java:

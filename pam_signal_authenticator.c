@@ -50,6 +50,12 @@
 #ifndef TOKEN_LEN
 #define TOKEN_LEN 13
 #endif
+#ifndef MAX_TOKEN_LEN
+#define MAX_TOKEN_LEN 256
+#endif
+#ifndef MINIMUM_BITS_OF_ENTROPY
+#define MINIMUM_BITS_OF_ENTROPY 65
+#endif
 #ifndef TOKEN_TIME_TO_EXPIRE
 #define TOKEN_TIME_TO_EXPIRE 90
 #endif
@@ -93,6 +99,9 @@ typedef struct params {
     bool strict_permissions;
     bool silent;
     bool timed;
+    const char *allowed_chars;
+    int allowed_chars_len;
+    int token_len;
 } Params;
 
 void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
@@ -190,20 +199,37 @@ int drop_privileges(struct passwd *pw) {
     return PAM_SUCCESS;
 }
 
+
+// Gives the number of bits of entropy of a token of length token_len with
+// allowed_char_len possible characters
+int bits_of_entropy(int token_len, int allowed_chars_len) {
+    // allowed_chars_len is a divisor of 256, and thus a power of 2
+    int power = 0;
+    while (allowed_chars_len > 1) {
+        allowed_chars_len >>= 1;
+        power++;
+    }
+    return power * token_len;
+}
+
 // Will be TOKEN_LEN many characters from ALLOWED_CHARS
 // Result is uniform string in ALLOWED_CHARS as long as
 // ALLOWED_CHARS_LEN is a divisor of 256
-int generate_random_token(char token_buf[TOKEN_LEN+1]) {
+int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params) {
     FILE *urandom = fopen("/dev/urandom", "r");
+    const char *allowed_chars = params->allowed_chars;
+    int n = params->allowed_chars_len;
+    int token_len = params->token_len;
+
     if (urandom == NULL) {
         return PAM_AUTH_ERR;
     }
     unsigned char c;
-    for (size_t i = 0; i < TOKEN_LEN; i++) {
+    for (size_t i = 0; i < token_len; i++) {
         c = fgetc(urandom);
-        token_buf[i] = ALLOWED_CHARS[c % ALLOWED_CHARS_LEN];
+        token_buf[i] = allowed_chars[c % n];
     }
-    token_buf[TOKEN_LEN] = '\0';
+    token_buf[token_len] = '\0';
     if (fclose(urandom) != 0) {
         return PAM_AUTH_ERR;
     }
@@ -453,19 +479,26 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
 
     int ret;
+    char allowed_chars[256] = {0};
+    strncpy(allowed_chars, ALLOWED_CHARS, 256);
+
     Params params_s = {
         .nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
         .strict_permissions = true,
         .silent = flags & PAM_SILENT,
-        .timed = false
+        .timed = false,
+        .allowed_chars = ALLOWED_CHARS,
+        .allowed_chars_len = ALLOWED_CHARS_LEN,
+        .token_len = TOKEN_LEN
     };
     Params *params = &params_s;
 
+
     int c;
     int idx = -1;
-    opterr = 0; //global
+    opterr = 0; //global, tells getopt to not print any errors
     while (1) {
-        static const char optstring[] = "+nNpsdt";
+        static const char optstring[] = "+nNpsdtC:T:";
         static struct option options[] = {
             {"nullok",              0, 0, 'n'},
             {"nonull",              0, 0, 'N'},
@@ -473,6 +506,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
             {"silent",              0, 0, 's'},
             {"debug",               0, 0, 'd'},
             {"timed",               0, 0, 't'},
+            {"allowed-chars",       1, 0, 'C'},
+            {"token-len",           1, 0, 'T'},
             {0, 0, 0, 0}
         };
 
@@ -489,7 +524,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
             break;
         }
         if (idx < 0) {
-            pam_syslog(pamh, LOG_ERR, "Aborting due to unknown option: %s", optstring);
+            pam_syslog(pamh, LOG_ERR, "Error processing arguments, aborting");
             return PAM_AUTH_ERR;
         }
         else if (!idx--) { //nullok
@@ -510,6 +545,29 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         else if (!idx--) { //timed
             params->timed = true;
         }
+        else if (!idx--) { //allowed-chars
+            strncpy(allowed_chars, optarg, 255);
+            allowed_chars[255] = '\0';
+            int n = strlen(allowed_chars);
+            if (n < 8) {
+                pam_syslog(pamh, LOG_ERR, "allowed-chars is too short, must be at least 8 characters, aborting");
+                return PAM_AUTH_ERR;
+            }
+            else if (256 % n != 0) {
+                pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %i\nlength must be a divisor of 256, aborting", allowed_chars, n);
+                return PAM_AUTH_ERR;
+            }
+            params->allowed_chars = allowed_chars;
+            params->allowed_chars_len = n;
+        }
+        else if (!idx--) { //token-len
+            int len = atoi(optarg);
+            if (len < 0 || len > MAX_TOKEN_LEN) {
+                pam_syslog(pamh, LOG_ERR, "invalid token length: %i", len);
+                return PAM_AUTH_ERR;
+            }
+            params->token_len = len;
+        }
         else {
             pam_syslog(pamh, LOG_ERR, "Error processing command line arguments, aborting");
             return PAM_AUTH_ERR;
@@ -520,7 +578,11 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         return PAM_AUTH_ERR;
     }
 
-
+    int bits = bits_of_entropy(params->token_len, params->allowed_chars_len);
+    if (bits < MINIMUM_BITS_OF_ENTROPY) {
+        pam_syslog(pamh, LOG_ERR, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
+        return PAM_AUTH_ERR;
+    }
     int NULL_FAILURE = params->nullok? PAM_SUCCESS : PAM_AUTH_ERR;
 
     //determine the user
@@ -582,8 +644,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     }
     const char *username = username_buf;
 
-    char token_buf[TOKEN_LEN+1] = {0};
-    if (generate_random_token(token_buf) != PAM_SUCCESS) {
+    char token_buf[MAX_TOKEN_LEN+1] = {0};
+    if (generate_random_token(token_buf, params) != PAM_SUCCESS) {
         error(pamh, params, "failed to generate random token");
         goto cleanup_then_return_error;
     }
@@ -648,7 +710,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         }
     }
 
-    if (strlen(response) != TOKEN_LEN || strncmp(response, token, TOKEN_LEN) != 0) {
+    if (strlen(response) != params->token_len || strncmp(response, token, params->token_len) != 0) {
         error(pamh, params, "incorrect token");
         goto cleanup_then_return_error;
     }
