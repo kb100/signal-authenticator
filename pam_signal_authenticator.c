@@ -44,6 +44,7 @@
 #define SIGNAL_CLI "/usr/local/bin/signal-cli"
 #endif
 #define SIGNAL_CLI_LEN ((sizeof(SIGNAL_CLI)/sizeof(SIGNAL_CLI[0]))-1)
+
 #ifndef MAX_BUF_SIZE
 #define MAX_BUF_SIZE 1024
 #endif
@@ -59,6 +60,7 @@
 #ifndef TOKEN_TIME_TO_EXPIRE
 #define TOKEN_TIME_TO_EXPIRE 90
 #endif
+
 #ifndef CONFIG_FILE
 #define CONFIG_FILE ".signal_authenticator"
 #endif
@@ -66,17 +68,10 @@
 #define SYSTEM_SIGNAL_USER "signal-authenticator"
 #endif
 
-/*
- * signal-cli is called using system(), so DO NOT allow escape characters,
- * quotes, semicolons, etc. unless you sanitize the system call
- *
- * allowed chars length should be a factor of 256, suggested 32 or higher
- */
 #ifndef ALLOWED_CHARS
 #define ALLOWED_CHARS "abcdefghijkmnpqrstuvwxyz12345678"
 #endif
 #define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
-
 
 #ifndef SSH_PROMPT
 #define SSH_PROMPT "Input 1-time code: "
@@ -212,9 +207,9 @@ int bits_of_entropy(int token_len, int allowed_chars_len) {
     return power * token_len;
 }
 
-// Will be TOKEN_LEN many characters from ALLOWED_CHARS
-// Result is uniform string in ALLOWED_CHARS as long as
-// ALLOWED_CHARS_LEN is a divisor of 256
+// Will be token_len many characters from allowed_chars
+// Result is uniform string in allowed_chars because allow_chars_len is a 
+// divisor of 256
 int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params) {
     FILE *urandom = fopen("/dev/urandom", "r");
     const char *allowed_chars = params->allowed_chars;
