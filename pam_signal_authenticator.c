@@ -103,7 +103,7 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
-	if (!params->silent)
+	if (!params || !params->silent)
 		pam_vsyslog(pamh, LOG_ERR, msg, ap);
 	va_end(ap);
 }
@@ -477,7 +477,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			break;
 		}
 		if (idx < 0) {
-			pam_syslog(pamh, LOG_ERR, "Error processing arguments, aborting");
+			error(pamh, NULL, "Error processing arguments, aborting");
 			return PAM_AUTH_ERR;
 		} else if (!idx--) { /* nullok */
 			params->nullok = true;
@@ -492,7 +492,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
-				pam_syslog(pamh, LOG_ERR, "allowed time to login is more than an hour, too long, aborting");
+				error(pamh, NULL, "allowed time to login is more than an hour, too long, aborting");
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* allowed-chars */
@@ -501,26 +501,26 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			size_t n = strlen(params->allowed_chars);
 			params->allowed_chars_len = n;
 			if (n < 8) {
-				pam_syslog(pamh, LOG_ERR, "allowed-chars is too short, must be at least 8 characters, aborting");
+				error(pamh, NULL, "allowed-chars is too short, must be at least 8 characters, aborting");
 				return PAM_AUTH_ERR;
 			} else if (256 % n != 0) {
-				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %zu\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
+				error(pamh, NULL, "allowed-chars: %s\nlength: %zu\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* token-len */
 			size_t len = (size_t)atoi(optarg);
 			if (len > MAX_TOKEN_LEN) {
-				pam_syslog(pamh, LOG_ERR, "invalid token length: %zu", len);
+				error(pamh, NULL, "invalid token length: %zu", len);
 				return PAM_AUTH_ERR;
 			}
 			params->token_len = len;
 		} else {
-			pam_syslog(pamh, LOG_ERR, "Error processing command line arguments, aborting");
+			error(pamh, NULL, "Error processing command line arguments, aborting");
 			return PAM_AUTH_ERR;
 		}
 	}
 	if (optind != argc) {
-		pam_syslog(pamh, LOG_ERR, "Non-option argument given, did you forget --? Aborting");
+		error(pamh, NULL, "Non-option argument given, did you forget --? Aborting");
 		return PAM_AUTH_ERR;
 	}
 
@@ -531,7 +531,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 
 	int bits = bits_of_entropy(params->token_len, params->allowed_chars_len);
 	if (bits < MINIMUM_BITS_OF_ENTROPY) {
-		pam_syslog(pamh, LOG_ERR, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
+		error(pamh, NULL, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
 		return PAM_AUTH_ERR;
 	}
 	return PAM_SUCCESS;
