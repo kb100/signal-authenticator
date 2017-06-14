@@ -111,37 +111,32 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
 void free_str_array(char *ptr[], size_t len) 
 {
 	for (size_t i=0; i<len; i++) {
-		if (ptr[i]) {
+		if (ptr[i])
 			free(ptr[i]);
-		}
 	}
 }
 
 int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE])
 {
-	if (home_dir == NULL || fn_buf == NULL) {
+	if (home_dir == NULL || fn_buf == NULL)
 		return PAM_AUTH_ERR;
-	}
 	size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
 	int snp_ret = snprintf(fn_buf, buf_size,
 			"%s/"CONFIG_FILE, home_dir);
-	if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
+	if (snp_ret < 0 || (size_t)snp_ret >= buf_size)
 		return PAM_AUTH_ERR;
-	}
 	return PAM_SUCCESS;
 }
 
 int make_message(const char *token, char message_buf[MAX_BUF_SIZE])
 {
-	if (token == NULL || message_buf == NULL) {
+	if (token == NULL || message_buf == NULL)
 		return PAM_AUTH_ERR;
-	}
 	size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
 	int snp_ret = snprintf(message_buf, buf_size,
 			"%s%s%s", SIGNAL_MESSAGE_PREFIX, token, SIGNAL_MESSAGE_SUFFIX);
-	if (snp_ret < 0 || (size_t)snp_ret >= buf_size) {
+	if (snp_ret < 0 || (size_t)snp_ret >= buf_size)
 		return PAM_AUTH_ERR;
-	}
 	return PAM_SUCCESS;
 }
 
@@ -155,28 +150,24 @@ int configs_exist_permissions_good(
 {
 	struct stat s = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0}};
 	int result = stat(config_filename, &s);
-	if (result < 0) {/* if file does not exist or something else fails */
+	if (result < 0) /* if file does not exist or something else fails */
 		return false;
-	}
 	if (params->strict_permissions) {
 		if (s.st_uid != pw->pw_uid) {
 			error(pamh, params, "User uid=%d, but config uid=%d", pw->pw_uid, s.st_uid);
 			return false;
-		}
-		if (s.st_gid != pw->pw_gid) {
+		} else if (s.st_gid != pw->pw_gid) {
 			error(pamh, params, "User gid=%d, but config gid=%d", pw->pw_gid, s.st_gid);
 			return false;
-		}
-		if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
+		} else if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
 			error(pamh, params, "config has bad permissions, try chmod o-rwx");
 			return false;
 		}
 	}
 
 	result = stat(signal_config_filename, &s);
-	if (result < 0) {
+	if (result < 0)
 		return false;
-	}
 	// nostrictpermissions does not apply to the admin
 	if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
 		error(pamh, params, "signal-authenticator uid=%d, but config uid=%d",
@@ -194,9 +185,8 @@ int drop_privileges(struct passwd *pw)
 {
 	int gid_ret = setgid(pw->pw_gid);
 	int uid_ret = setuid(pw->pw_uid);
-	if (uid_ret != 0 || gid_ret != 0) {
+	if (uid_ret != 0 || gid_ret != 0)
 		return PAM_AUTH_ERR;
-	}
 	return PAM_SUCCESS;
 }
 
@@ -224,34 +214,29 @@ int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params)
 	int n = params->allowed_chars_len;
 	int token_len = params->token_len;
 
-	if (urandom == NULL) {
+	if (urandom == NULL)
 		return PAM_AUTH_ERR;
-	}
 	unsigned char c;
 	for (size_t i = 0; i < token_len; i++) {
 		c = fgetc(urandom);
 		token_buf[i] = allowed_chars[c % n];
 	}
 	token_buf[token_len] = '\0';
-	if (fclose(urandom) != 0) {
+	if (fclose(urandom) != 0)
 		return PAM_AUTH_ERR;
-	}
 	return PAM_SUCCESS;
 }
 
 bool looks_like_phone_number(const char *str)
 {
-	if (str == NULL) {
+	if (str == NULL)
 		return false;
-	}
 	int len = strlen(str);
-	if (len == 0 || len > MAX_USERNAME_LEN) {
+	if (len == 0 || len > MAX_USERNAME_LEN)
 		return false;
-	}
 	while (*str) {
-		if (!(*str == '+' || ('0' <= *str && *str <= '9'))) {
+		if (!(*str == '+' || ('0' <= *str && *str <= '9')))
 			return false;
-		}
 		str++;
 	}
 	return true;
@@ -260,17 +245,15 @@ bool looks_like_phone_number(const char *str)
 int parse_signal_username(const char *config_filename, char username_buf[MAX_USERNAME_LEN+1])
 {
 	FILE *config_fp = fopen(config_filename, "r");
-	if (config_fp == NULL) {
+	if (config_fp == NULL)
 		return PAM_AUTH_ERR;
-	}
 
 	bool username_found = false;
 	char line_buf[MAX_BUF_SIZE] = {0};
 	while (!username_found && fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
 		int len = strlen(line_buf);
-		if (line_buf[len-1] != '\n') {
+		if (line_buf[len-1] != '\n')
 		   return PAM_AUTH_ERR;
-		}
 		line_buf[len-1] = '\0';
 		const char *line = line_buf;
 		switch (*line) {
@@ -280,16 +263,14 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 				break;
 			// username
 			case 'u':
-				if (strncmp(line, "username=", strlen("username=")) != 0) {
+				if (strncmp(line, "username=", strlen("username=")) != 0)
 					goto error;
-				}
 				line += strlen("username=");
 				if (looks_like_phone_number(line)) {
 					// it is known here that strlen(line) <= MAX_USERNAME_LEN
 					strncpy(username_buf, line, MAX_USERNAME_LEN+1);
 					username_found = true;
-				}
-				else {
+				} else {
 					goto error;
 				}
 				break;
@@ -298,9 +279,8 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 				break;
 		}
 	}
-	if (fclose(config_fp) != 0 || !username_found) {
+	if (fclose(config_fp) != 0 || !username_found)
 		return PAM_AUTH_ERR;
-	}
 
 	return PAM_SUCCESS;
 
@@ -313,17 +293,15 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 int parse_signal_recipients(const char *config_filename, char *recipients_arr[MAX_RECIPIENTS])
 {
 	FILE *config_fp = fopen(config_filename, "r");
-	if (config_fp == NULL) {
+	if (config_fp == NULL)
 		return PAM_AUTH_ERR;
-	}
 
 	int recipient_count = 0;
 	char line_buf[MAX_BUF_SIZE] = {0};
 	while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
 		int len = strlen(line_buf);
-		if (line_buf[len -1] != '\n') {
+		if (line_buf[len -1] != '\n')
 		   return PAM_AUTH_ERR;
-		}
 		line_buf[len-1] = '\0';
 		const char *line = line_buf;
 		switch (*line) {
@@ -333,19 +311,16 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 				break;
 			// recipient
 			case 'r':
-				if (strncmp(line, "recipient=", strlen("recipient=")) != 0) {
+				if (strncmp(line, "recipient=", strlen("recipient=")) != 0)
 					goto error;
-				}
 				line += strlen("recipient=");
 				if (looks_like_phone_number(line)) {
 					int username_len = strlen(line);
 					recipients_arr[recipient_count] = calloc(username_len+1, sizeof(char));
-					if (!recipients_arr[recipient_count]) {
+					if (!recipients_arr[recipient_count])
 						goto error;
-					}
 					strcpy(recipients_arr[recipient_count++], line);
-				}
-				else {
+				} else {
 					goto error;
 				}
 				break;
@@ -354,13 +329,11 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 		}
 		// if the user specified more than MAX_RECIPIENTS recipients, just use
 		// the first few
-		if (recipient_count == MAX_RECIPIENTS) {
+		if (recipient_count == MAX_RECIPIENTS)
 			break;
-		}
 	}
-	if (fclose(config_fp) != 0 || recipient_count == 0) {
+	if (fclose(config_fp) != 0 || recipient_count == 0)
 		return PAM_AUTH_ERR;
-	}
 
 	return PAM_SUCCESS;
 
@@ -376,9 +349,8 @@ int build_signal_send_command(
 		const char *message,
 		const char *args[6+MAX_RECIPIENTS+1])
 {
-	if (sender == NULL || recipients == NULL || message == NULL || args == NULL) {
+	if (sender == NULL || recipients == NULL || message == NULL || args == NULL)
 		return PAM_AUTH_ERR;
-	}
 	args[0] = "signal-cli";
 	args[1] = "-u";
 	args[2] = sender;
@@ -388,8 +360,7 @@ int build_signal_send_command(
 	for (size_t i = 6; i < 6+MAX_RECIPIENTS; i++) {
 		if (recipients[i-6] && recipients[i-6][0]) {
 			args[i] = recipients[i-6];
-		}
-		else {
+		} else {
 			args[i] = (const char *)NULL;
 			break;
 		}
@@ -400,9 +371,8 @@ int build_signal_send_command(
 
 int build_signal_receive_command(const char *username, const char *args[8])
 {
-	if (username == NULL || args == NULL) {
+	if (username == NULL || args == NULL)
 		return PAM_AUTH_ERR;
-	}
 	args[0] = "signal-cli";
 	args[1] = "-u";
 	args[2] = username;
@@ -424,34 +394,29 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 
 	if (c_pid == 0) {
 		// child
-		if (drop_privileges(drop_pw) != PAM_SUCCESS ) {
+		if (drop_privileges(drop_pw) != PAM_SUCCESS )
 			exit(EXIT_FAILURE);
-		}
 		int fdnull = open("/dev/null", O_RDWR);
 		if (fdnull) {
 			bool failure = false;
 			failure |= dup2(fdnull, STDIN_FILENO) < 0;
 			failure |= dup2(fdnull, STDOUT_FILENO) < 0;
 			failure |= dup2(fdnull, STDERR_FILENO) < 0;
-			if (close(fdnull) != 0 || failure) {
+			if (close(fdnull) != 0 || failure)
 				exit(EXIT_FAILURE);
-			}
-		}
-		else {
+		} else {
 			exit(EXIT_FAILURE);
 		}
 		execv(SIGNAL_CLI, argv);
-	}
-	else if (c_pid <  0) {
+	} else if (c_pid <  0) {
 		error(pamh, params, "failed to fork child for sending message");
 		return PAM_AUTH_ERR;
 	}
 	// parent
 	wait(&status);
 
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
 		return PAM_AUTH_ERR;
-	}
 
 	return PAM_SUCCESS;
 }
@@ -461,12 +426,10 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	char *response = NULL;
 	int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, SSH_PROMPT);
 	if (ret != PAM_SUCCESS) {
-		if (response) {
+		if (response)
 			free(response);
-		}
-		if (ret == PAM_BUF_ERR) {
+		if (ret == PAM_BUF_ERR)
 			error(pamh, params, "Possible malicious attempt, PAM_BUF_ERR.");
-		}
 		return ret;
 	}
 
@@ -527,56 +490,45 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 					break;
 				}
 			}
-		}
-		else if (c < 0) {
+		} else if (c < 0) {
 			break;
 		}
 		if (idx < 0) {
 			pam_syslog(pamh, LOG_ERR, "Error processing arguments, aborting");
 			return PAM_AUTH_ERR;
-		}
-		else if (!idx--) { //nullok
+		} else if (!idx--) { //nullok
 			params->nullok = true;
-		}
-		else if (!idx--) { //nonull
+		} else if (!idx--) { //nonull
 			params->nullok = false;
-		}
-		else if (!idx--) { //nostrictpermissions
+		} else if (!idx--) { //nostrictpermissions
 			params->strict_permissions = false;
-		}
-		else if (!idx--) { //silent
+		} else if (!idx--) { //silent
 			params->silent = true;
-		}
-		else if (!idx--) { //debug
+		} else if (!idx--) { //debug
 			params->silent = false;
-		}
-		else if (!idx--) { //timed
+		} else if (!idx--) { //timed
 			params->timed = true;
-		}
-		else if (!idx--) { //allowed-chars
+		} else if (!idx--) { //allowed-chars
 			strncpy(allowed_chars, optarg, 255);
 			allowed_chars[255] = '\0';
 			int n = strlen(allowed_chars);
 			if (n < 8) {
 				pam_syslog(pamh, LOG_ERR, "allowed-chars is too short, must be at least 8 characters, aborting");
 				return PAM_AUTH_ERR;
-			}
-			else if (256 % n != 0) {
+			} else if (256 % n != 0) {
 				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %i\nlength must be a divisor of 256, aborting", allowed_chars, n);
 				return PAM_AUTH_ERR;
 			}
 			params->allowed_chars = allowed_chars;
 			params->allowed_chars_len = n;
-		}
-		else if (!idx--) { //token-len
+		} else if (!idx--) { //token-len
 			int len = atoi(optarg);
 			if (len < 0 || len > MAX_TOKEN_LEN) {
 				pam_syslog(pamh, LOG_ERR, "invalid token length: %i", len);
 				return PAM_AUTH_ERR;
 			}
 			params->token_len = len;
-		}
-		else {
+		} else {
 			pam_syslog(pamh, LOG_ERR, "Error processing command line arguments, aborting");
 			return PAM_AUTH_ERR;
 		}
@@ -635,9 +587,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	const char *config_filename = config_filename_buf;
 	const char *signal_config_filename = signal_config_filename_buf;
 
-	if (!configs_exist_permissions_good(pamh, params, pw, signal_pw, config_filename, signal_config_filename)) {
+	if (!configs_exist_permissions_good(pamh, params, pw, signal_pw, config_filename, signal_config_filename))
 		goto null_failure;
-	}
 
 	// at this point we know the user must do 2fa,
 	// they either opted in by putting the config file where it should be
@@ -727,9 +678,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	return PAM_SUCCESS;
 
 	null_failure : {
-		if (params->nullok) {
+		if (params->nullok)
 			pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
-		}
 		return NULL_FAILURE;
 	}
 
