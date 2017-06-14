@@ -150,7 +150,7 @@ int configs_exist_permissions_good(
 {
 	struct stat s = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0}};
 	int result = stat(config_filename, &s);
-	if (result < 0) /* if file does not exist or something else fails */
+	if (result < 0) /* File does not exist or something else fails */
 		return false;
 	if (params->strict_permissions) {
 		if (s.st_uid != pw->pw_uid) {
@@ -168,7 +168,7 @@ int configs_exist_permissions_good(
 	result = stat(signal_config_filename, &s);
 	if (result < 0)
 		return false;
-	// nostrictpermissions does not apply to the admin
+	/* Option --nostrictpermissions does not apply to the admin */
 	if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
 		error(pamh, params, "signal-authenticator uid=%d, but config uid=%d",
 			signal_pw->pw_uid, s.st_uid);
@@ -191,11 +191,13 @@ int drop_privileges(struct passwd *pw)
 }
 
 
-// Gives the number of bits of entropy of a token of length token_len with
-// allowed_char_len possible characters
+/* 
+ * Gives the number of bits of entropy of a token of length token_len with
+ * allowed_char_len possible characters.
+ */
 int bits_of_entropy(int token_len, int allowed_chars_len)
 {
-	// allowed_chars_len is a divisor of 256, and thus a power of 2
+	/* allowed_chars_len is a divisor of 256, and thus a power of 2 */
 	int power = 0;
 	while (allowed_chars_len > 1) {
 		allowed_chars_len >>= 1;
@@ -204,9 +206,11 @@ int bits_of_entropy(int token_len, int allowed_chars_len)
 	return power * token_len;
 }
 
-// Will be token_len many characters from allowed_chars
-// Result is uniform string in allowed_chars because allow_chars_len is a 
-// divisor of 256
+/*
+ * Will be token_len many characters from allowed_chars.
+ * Result is uniform string in allowed_chars because allow_chars_len is a
+ * divisor of 256.
+ */
 int generate_random_token(char token_buf[MAX_TOKEN_LEN + 1], const Params *params)
 {
 	FILE *urandom = fopen("/dev/urandom", "r");
@@ -257,25 +261,22 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 		line_buf[len - 1] = '\0';
 		const char *line = line_buf;
 		switch (*line) {
-			// Comment or empty line?
-		case '#':
-		case '\0':
+		case '#': /* Comment? */
+		case '\0': /* Empty line? */
 			break;
-		// username
-		case 'u':
+		case 'u': /* username */
 			if (strncmp(line, "username=", strlen("username=")) != 0)
 				goto error;
 			line += strlen("username=");
 			if (looks_like_phone_number(line)) {
-				// it is known here that strlen(line) <= MAX_USERNAME_LEN
+				/* It is known here that strlen(line) <= MAX_USERNAME_LEN */
 				strncpy(username_buf, line, MAX_USERNAME_LEN + 1);
 				username_found = true;
 			} else {
 				goto error;
 			}
 			break;
-		// ignore garbage
-		default:
+		default: /* Ignore garbage */
 			break;
 		}
 	}
@@ -304,12 +305,10 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 		line_buf[len - 1] = '\0';
 		const char *line = line_buf;
 		switch (*line) {
-		// Comment or empty line?
-		case '#':
-		case '\0':
+		case '#': /* Comment? */
+		case '\0': /* Empty line? */
 			break;
-		// recipient
-		case 'r':
+		case 'r': /* recipient */
 			if (strncmp(line, "recipient=", strlen("recipient=")) != 0)
 				goto error;
 			line += strlen("recipient=");
@@ -326,8 +325,11 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 		default:
 			break;
 		}
-		// if the user specified more than MAX_RECIPIENTS recipients, just use
-		// the first few
+
+		/*
+		 * If the user specified more than MAX_RECIPIENTS recipients, just use
+		 * the first few
+		 */
 		if (recipient_count == MAX_RECIPIENTS)
 			break;
 	}
@@ -391,7 +393,7 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 	c_pid = fork();
 
 	if (c_pid == 0) {
-		// child
+		/* child */
 		if (drop_privileges(drop_pw) != PAM_SUCCESS )
 			exit(EXIT_FAILURE);
 		int fdnull = open("/dev/null", O_RDWR);
@@ -410,7 +412,7 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 		error(pamh, params, "failed to fork child for sending message");
 		return PAM_AUTH_ERR;
 	}
-	// parent
+	/* parent */
 	wait(&status);
 
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
@@ -443,8 +445,10 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	return PAM_CONV_ERR;
 }
 
-// This is the entry point, think of it as main()
-/* PAM entry point for authentication verification */
+/*
+ * This is the entry point, think of it as main().
+ * PAM entry point for authentication verification
+ */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	int ret;
@@ -465,7 +469,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 
 	int c;
 	int idx = -1;
-	opterr = 0; //global, tells getopt to not print any errors
+	opterr = 0; /* global, tells getopt to not print any errors */
 	while (1) {
 		static const char optstring[] = "+nNpsdtC:T:";
 		static struct option options[] = {
@@ -494,19 +498,19 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		if (idx < 0) {
 			pam_syslog(pamh, LOG_ERR, "Error processing arguments, aborting");
 			return PAM_AUTH_ERR;
-		} else if (!idx--) { //nullok
+		} else if (!idx--) { /* nullok */
 			params->nullok = true;
-		} else if (!idx--) { //nonull
+		} else if (!idx--) { /* nonull */
 			params->nullok = false;
-		} else if (!idx--) { //nostrictpermissions
+		} else if (!idx--) { /* nostrictpermissions */
 			params->strict_permissions = false;
-		} else if (!idx--) { //silent
+		} else if (!idx--) { /* silent */
 			params->silent = true;
-		} else if (!idx--) { //debug
+		} else if (!idx--) { /* debug */
 			params->silent = false;
-		} else if (!idx--) { //timed
+		} else if (!idx--) { /* timed */
 			params->timed = true;
-		} else if (!idx--) { //allowed-chars
+		} else if (!idx--) { /* allowed-chars */
 			strncpy(allowed_chars, optarg, 255);
 			allowed_chars[255] = '\0';
 			int n = strlen(allowed_chars);
@@ -519,7 +523,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 			}
 			params->allowed_chars = allowed_chars;
 			params->allowed_chars_len = n;
-		} else if (!idx--) { //token-len
+		} else if (!idx--) { /* token-len */
 			int len = atoi(optarg);
 			if (len < 0 || len > MAX_TOKEN_LEN) {
 				pam_syslog(pamh, LOG_ERR, "invalid token length: %i", len);
@@ -543,14 +547,14 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 	int NULL_FAILURE = params->nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
-	//determine the user
+	/* Determine the user */
 	const char *user = NULL;
 	if ((ret = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS || user == NULL) {
 		error(pamh, params, "failed to get user");
 		return ret;
 	}
 
-	//get the user and signal-authenticator's passwd info
+	/* Get the user and signal-authenticator's passwd info */
 	struct passwd *pw = NULL;
 	struct passwd pw_s;
 	char passdw_char_buf[MAX_BUF_SIZE] = {0};
@@ -569,7 +573,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		return PAM_AUTH_ERR;
 	}
 
-	// check that user wants 2 factor authentication
+	/* Check that user wants 2 factor authentication */
 	char config_filename_buf[MAX_BUF_SIZE] = {0};
 	if (get_2fa_config_filename(pw->pw_dir, config_filename_buf) != PAM_SUCCESS) {
 		error(pamh, params, "failed to get config filename");
@@ -588,12 +592,14 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	if (!configs_exist_permissions_good(pamh, params, pw, signal_pw, config_filename, signal_config_filename))
 		goto null_failure;
 
-	// at this point we know the user must do 2fa,
-	// they either opted in by putting the config file where it should be
-	// or the sysadmin requires 2fa
-	// (though the user or admin may still have an invalid config file)
-	// from here on failures should err on the side of denying access
-	
+	/*
+	 * at this point we know the user must do 2fa,
+	 * they either opted in by putting the config file where it should be
+	 * or the sysadmin requires 2fa
+	 * (though the user or admin may still have an invalid config file)
+	 * from here on failures should err on the side of denying access
+	 */
+
 	char username_buf[MAX_USERNAME_LEN + 1] = {0};
 	if (parse_signal_username(signal_config_filename, username_buf) != PAM_SUCCESS) {
 		error(pamh, params, "Failed to parse sender username from config");
@@ -710,9 +716,9 @@ PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const c
 }
 
 /*
- PAM entry point for setting user credentials (that is, to actually
- establish the authenticated user's credentials to the service provider)
-*/
+ * PAM entry point for setting user credentials (that is, to actually
+ * establish the authenticated user's credentials to the service provider)
+ */
 PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	return PAM_IGNORE;
