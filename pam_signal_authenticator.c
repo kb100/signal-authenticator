@@ -95,8 +95,8 @@ typedef struct params {
 	bool silent;
 	time_t time_limit;
 	char *allowed_chars;
-	int allowed_chars_len;
-	int token_len;
+	size_t allowed_chars_len;
+	size_t token_len;
 } Params;
 
 void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
@@ -193,12 +193,12 @@ int drop_privileges(struct passwd *pw)
 
 /*
  * Gives the number of bits of entropy of a token of length token_len with
- * allowed_char_len possible characters.
+ * allowed_chars_len possible characters.
  */
-int bits_of_entropy(int token_len, int allowed_chars_len)
+int bits_of_entropy(size_t token_len, size_t allowed_chars_len)
 {
 	/* allowed_chars_len is a divisor of 256, and thus a power of 2 */
-	int power = 0;
+	size_t power = 0;
 	while (allowed_chars_len > 1) {
 		allowed_chars_len >>= 1;
 		power++;
@@ -215,8 +215,8 @@ int generate_random_token(char token_buf[MAX_TOKEN_LEN + 1], const Params *param
 {
 	FILE *urandom = fopen("/dev/urandom", "r");
 	const char *allowed_chars = params->allowed_chars;
-	int n = params->allowed_chars_len;
-	int token_len = params->token_len;
+	size_t n = params->allowed_chars_len;
+	size_t token_len = params->token_len;
 
 	if (urandom == NULL)
 		return PAM_AUTH_ERR;
@@ -235,7 +235,7 @@ bool looks_like_phone_number(const char *str)
 {
 	if (str == NULL)
 		return false;
-	int len = strlen(str);
+	size_t len = strlen(str);
 	if (len == 0 || len > MAX_USERNAME_LEN)
 		return false;
 	while (*str) {
@@ -255,7 +255,7 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 	bool username_found = false;
 	char line_buf[MAX_BUF_SIZE] = {0};
 	while (!username_found && fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
-		int len = strlen(line_buf);
+		size_t len = strlen(line_buf);
 		if (line_buf[len - 1] != '\n')
 		   return PAM_AUTH_ERR;
 		line_buf[len - 1] = '\0';
@@ -299,8 +299,8 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 	int recipient_count = 0;
 	char line_buf[MAX_BUF_SIZE] = {0};
 	while (fgets(line_buf, sizeof(line_buf), config_fp) != NULL) {
-		int len = strlen(line_buf);
-		if (line_buf[len -1] != '\n')
+		size_t len = strlen(line_buf);
+		if (line_buf[len - 1] != '\n')
 		   return PAM_AUTH_ERR;
 		line_buf[len - 1] = '\0';
 		const char *line = line_buf;
@@ -313,7 +313,7 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 				goto error;
 			line += strlen("recipient=");
 			if (looks_like_phone_number(line)) {
-				int username_len = strlen(line);
+				size_t username_len = strlen(line);
 				recipients_arr[recipient_count] = calloc(username_len + 1, sizeof(char));
 				if (!recipients_arr[recipient_count])
 					goto error;
@@ -498,19 +498,19 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 		} else if (!idx--) { /* allowed-chars */
 			strncpy(params->allowed_chars, optarg, 255);
 			params->allowed_chars[255] = '\0';
-			int n = strlen(params->allowed_chars);
+			size_t n = strlen(params->allowed_chars);
 			params->allowed_chars_len = n;
 			if (n < 8) {
 				pam_syslog(pamh, LOG_ERR, "allowed-chars is too short, must be at least 8 characters, aborting");
 				return PAM_AUTH_ERR;
 			} else if (256 % n != 0) {
-				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %i\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
+				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %zu\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* token-len */
-			int len = atoi(optarg);
-			if (len < 0 || len > MAX_TOKEN_LEN) {
-				pam_syslog(pamh, LOG_ERR, "invalid token length: %i", len);
+			size_t len = (size_t)atoi(optarg);
+			if (len > MAX_TOKEN_LEN) {
+				pam_syslog(pamh, LOG_ERR, "invalid token length: %zu", len);
 				return PAM_AUTH_ERR;
 			}
 			params->token_len = len;
