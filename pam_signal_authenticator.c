@@ -99,7 +99,8 @@ typedef struct params {
     int token_len;
 } Params;
 
-void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
+void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
+{
     va_list ap;
     va_start(ap, msg);
     if (!params->silent)
@@ -107,7 +108,8 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...) {
     va_end(ap);
 }
 
-void free_str_array(char *ptr[], size_t len) {
+void free_str_array(char *ptr[], size_t len) 
+{
     for (size_t i=0; i<len; i++) {
         if (ptr[i]) {
             free(ptr[i]);
@@ -115,7 +117,8 @@ void free_str_array(char *ptr[], size_t len) {
     }
 }
 
-int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
+int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE])
+{
     if (home_dir == NULL || fn_buf == NULL) {
         return PAM_AUTH_ERR;
     }
@@ -128,7 +131,8 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE]) {
     return PAM_SUCCESS;
 }
 
-int make_message(const char *token, char message_buf[MAX_BUF_SIZE]) {
+int make_message(const char *token, char message_buf[MAX_BUF_SIZE])
+{
     if (token == NULL || message_buf == NULL) {
         return PAM_AUTH_ERR;
     }
@@ -147,7 +151,8 @@ int configs_exist_permissions_good(
         struct passwd *pw,
         struct passwd *signal_pw,
         const char *config_filename,
-        const char *signal_config_filename) {
+        const char *signal_config_filename)
+{
     struct stat s = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, {0}};
     int result = stat(config_filename, &s);
     if (result < 0) {/* if file does not exist or something else fails */
@@ -185,7 +190,8 @@ int configs_exist_permissions_good(
     return true;
 }
 
-int drop_privileges(struct passwd *pw) {
+int drop_privileges(struct passwd *pw)
+{
     int gid_ret = setgid(pw->pw_gid);
     int uid_ret = setuid(pw->pw_uid);
     if (uid_ret != 0 || gid_ret != 0) {
@@ -197,7 +203,8 @@ int drop_privileges(struct passwd *pw) {
 
 // Gives the number of bits of entropy of a token of length token_len with
 // allowed_char_len possible characters
-int bits_of_entropy(int token_len, int allowed_chars_len) {
+int bits_of_entropy(int token_len, int allowed_chars_len)
+{
     // allowed_chars_len is a divisor of 256, and thus a power of 2
     int power = 0;
     while (allowed_chars_len > 1) {
@@ -210,7 +217,8 @@ int bits_of_entropy(int token_len, int allowed_chars_len) {
 // Will be token_len many characters from allowed_chars
 // Result is uniform string in allowed_chars because allow_chars_len is a 
 // divisor of 256
-int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params) {
+int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params)
+{
     FILE *urandom = fopen("/dev/urandom", "r");
     const char *allowed_chars = params->allowed_chars;
     int n = params->allowed_chars_len;
@@ -231,7 +239,8 @@ int generate_random_token(char token_buf[MAX_TOKEN_LEN+1], const Params *params)
     return PAM_SUCCESS;
 }
 
-bool looks_like_phone_number(const char *str) {
+bool looks_like_phone_number(const char *str)
+{
     if (str == NULL) {
         return false;
     }
@@ -248,7 +257,8 @@ bool looks_like_phone_number(const char *str) {
     return true;
 }
 
-int parse_signal_username(const char *config_filename, char username_buf[MAX_USERNAME_LEN+1]) {
+int parse_signal_username(const char *config_filename, char username_buf[MAX_USERNAME_LEN+1])
+{
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
         return PAM_AUTH_ERR;
@@ -300,7 +310,8 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
     }
 }
 
-int parse_signal_recipients(const char *config_filename, char *recipients_arr[MAX_RECIPIENTS]){
+int parse_signal_recipients(const char *config_filename, char *recipients_arr[MAX_RECIPIENTS])
+{
     FILE *config_fp = fopen(config_filename, "r");
     if (config_fp == NULL) {
         return PAM_AUTH_ERR;
@@ -363,7 +374,8 @@ int build_signal_send_command(
         const char *sender,
         char *recipients[MAX_RECIPIENTS],
         const char *message,
-        const char *args[6+MAX_RECIPIENTS+1]) {
+        const char *args[6+MAX_RECIPIENTS+1])
+{
     if (sender == NULL || recipients == NULL || message == NULL || args == NULL) {
         return PAM_AUTH_ERR;
     }
@@ -388,7 +400,8 @@ int build_signal_send_command(
 
 int build_signal_receive_command(
         const char *username,
-        const char *args[8]) {
+        const char *args[8])
+{
     if (username == NULL || args == NULL) {
         return PAM_AUTH_ERR;
     }
@@ -404,7 +417,8 @@ int build_signal_receive_command(
 }
 
 int signal_cli(pam_handle_t *pamh, const Params *params,
-        struct passwd *drop_pw, char *const argv[]) {
+        struct passwd *drop_pw, char *const argv[])
+{
     pid_t c_pid;
     int status;
 
@@ -444,7 +458,8 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
     return PAM_SUCCESS;
 }
 
-int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE]) {
+int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE])
+{
     char *response = NULL;
     int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, SSH_PROMPT);
     if (ret != PAM_SUCCESS) {
@@ -471,8 +486,8 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 
 // This is the entry point, think of it as main()
 /* PAM entry point for authentication verification */
-PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-
+PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     int ret;
     char allowed_chars[256] = {0};
     strncpy(allowed_chars, ALLOWED_CHARS, 256);
@@ -734,17 +749,20 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 /* PAM entry point for session creation */
-PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+PAM_EXTERN int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     return PAM_IGNORE;
 }
 
 /* PAM entry point for session cleanup */
-PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     return PAM_IGNORE;
 }
 
 /* PAM entry point for accounting */
-PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     return PAM_IGNORE;
 }
 
@@ -752,12 +770,14 @@ PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const c
  PAM entry point for setting user credentials (that is, to actually
  establish the authenticated user's credentials to the service provider)
 */
-PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+PAM_EXTERN int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     return PAM_IGNORE;
 }
 
 /* PAM entry point for authentication token (password) changes */
-PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
     return PAM_IGNORE;
 }
 
