@@ -68,10 +68,10 @@
 #define SYSTEM_SIGNAL_USER "signal-authenticator"
 #endif
 
-#ifndef ALLOWED_CHARS
-#define ALLOWED_CHARS "abcdefghijkmnpqrstuvwxyz12345678"
+#ifndef ALLOWED_CHARS_DEFAULT
+#define ALLOWED_CHARS_DEFAULT "abcdefghijkmnpqrstuvwxyz12345678"
 #endif
-#define ALLOWED_CHARS_LEN ((sizeof(ALLOWED_CHARS)/sizeof(ALLOWED_CHARS[0]))-1)
+#define ALLOWED_CHARS_LEN_DEFAULT ((sizeof(ALLOWED_CHARS_DEFAULT)/sizeof(ALLOWED_CHARS_DEFAULT[0]))-1)
 
 #ifndef SSH_PROMPT
 #define SSH_PROMPT "Input 1-time code: "
@@ -94,7 +94,7 @@ typedef struct params {
 	bool strict_permissions;
 	bool silent;
 	bool timed;
-	const char *allowed_chars;
+	char *allowed_chars;
 	int allowed_chars_len;
 	int token_len;
 } Params;
@@ -445,28 +445,9 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	return PAM_CONV_ERR;
 }
 
-/*
- * This is the entry point, think of it as main().
- * PAM entry point for authentication verification
- */
-PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+
+int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 {
-	int ret;
-	char allowed_chars[256] = {0};
-	strncpy(allowed_chars, ALLOWED_CHARS, 256);
-
-	Params params_s = {
-		.nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
-		.strict_permissions = true,
-		.silent = flags & PAM_SILENT,
-		.timed = false,
-		.allowed_chars = ALLOWED_CHARS,
-		.allowed_chars_len = ALLOWED_CHARS_LEN,
-		.token_len = TOKEN_LEN
-	};
-	Params *params = &params_s;
-
-
 	int c;
 	int idx = -1;
 	opterr = 0; /* global, tells getopt to not print any errors */
@@ -511,18 +492,17 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		} else if (!idx--) { /* timed */
 			params->timed = true;
 		} else if (!idx--) { /* allowed-chars */
-			strncpy(allowed_chars, optarg, 255);
-			allowed_chars[255] = '\0';
-			int n = strlen(allowed_chars);
+			strncpy(params->allowed_chars, optarg, 255);
+			params->allowed_chars[255] = '\0';
+			int n = strlen(params->allowed_chars);
+			params->allowed_chars_len = n;
 			if (n < 8) {
 				pam_syslog(pamh, LOG_ERR, "allowed-chars is too short, must be at least 8 characters, aborting");
 				return PAM_AUTH_ERR;
 			} else if (256 % n != 0) {
-				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %i\nlength must be a divisor of 256, aborting", allowed_chars, n);
+				pam_syslog(pamh, LOG_ERR, "allowed-chars: %s\nlength: %i\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
 				return PAM_AUTH_ERR;
 			}
-			params->allowed_chars = allowed_chars;
-			params->allowed_chars_len = n;
 		} else if (!idx--) { /* token-len */
 			int len = atoi(optarg);
 			if (len < 0 || len > MAX_TOKEN_LEN) {
@@ -540,11 +520,41 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		return PAM_AUTH_ERR;
 	}
 
+	if (!params->allowed_chars || !params->allowed_chars[0]) {
+		params->allowed_chars = ALLOWED_CHARS_DEFAULT;
+		params->allowed_chars_len = ALLOWED_CHARS_LEN_DEFAULT;
+	}
+
 	int bits = bits_of_entropy(params->token_len, params->allowed_chars_len);
 	if (bits < MINIMUM_BITS_OF_ENTROPY) {
 		pam_syslog(pamh, LOG_ERR, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
 		return PAM_AUTH_ERR;
 	}
+	return PAM_SUCCESS;
+}
+
+/*
+ * This is the entry point, think of it as main().
+ * PAM entry point for authentication verification
+ */
+PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+	int ret;
+	char allowed_chars[256] = {0};
+
+	Params params_s = {
+		.nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
+		.strict_permissions = true,
+		.silent = flags & PAM_SILENT,
+		.timed = false,
+		.allowed_chars = allowed_chars,
+		.allowed_chars_len = 0,
+		.token_len = TOKEN_LEN
+	};
+	Params *params = &params_s;
+	if ((ret = parse_args(pamh, params, argc, argv)) != PAM_SUCCESS)
+		return ret;
+
 	int NULL_FAILURE = params->nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
 	/* Determine the user */
@@ -554,18 +564,20 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		return ret;
 	}
 
-	/* Get the user and signal-authenticator's passwd info */
+	/* Get the user's passwd info */
 	struct passwd *pw = NULL;
 	struct passwd pw_s;
 	char passdw_char_buf[MAX_BUF_SIZE] = {0};
-	struct passwd *signal_pw = NULL;
-	struct passwd signal_pw_s;
-	char signal_passdw_char_buf[MAX_BUF_SIZE] = {0};
 	ret = getpwnam_r(user, &pw_s, passdw_char_buf, sizeof(passdw_char_buf), &pw);
 	if (ret != 0 || pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] != '/') {
 		error(pamh, params, "failed to get passwd struct");
 		return PAM_AUTH_ERR;
 	}
+
+	/* Get the signal-authenticator user's passwd info */
+	struct passwd *signal_pw = NULL;
+	struct passwd signal_pw_s;
+	char signal_passdw_char_buf[MAX_BUF_SIZE] = {0};
 	ret = getpwnam_r(SYSTEM_SIGNAL_USER, &signal_pw_s, signal_passdw_char_buf,
 			sizeof(signal_passdw_char_buf), &signal_pw);
 	if (ret != 0 || signal_pw == NULL || signal_pw->pw_dir == NULL || signal_pw->pw_dir[0] != '/') {
@@ -593,7 +605,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		goto null_failure;
 
 	/*
-	 * at this point we know the user must do 2fa,
+	 * At this point we know the user must do 2fa,
 	 * they either opted in by putting the config file where it should be
 	 * or the sysadmin requires 2fa
 	 * (though the user or admin may still have an invalid config file)
@@ -657,7 +669,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		error(pamh, params, "signal-cli send command failed");
 		goto cleanup_then_return_error;
 	}
-	
+
 	char response_buf[MAX_BUF_SIZE] = {0};
 	if (wait_for_response(pamh, params, response_buf) != PAM_SUCCESS) {
 		error(pamh, params, "failed response");
