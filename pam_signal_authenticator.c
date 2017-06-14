@@ -258,25 +258,25 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 		const char *line = line_buf;
 		switch (*line) {
 			// Comment or empty line?
-			case '#':
-			case '\0':
-				break;
-			// username
-			case 'u':
-				if (strncmp(line, "username=", strlen("username=")) != 0)
-					goto error;
-				line += strlen("username=");
-				if (looks_like_phone_number(line)) {
-					// it is known here that strlen(line) <= MAX_USERNAME_LEN
-					strncpy(username_buf, line, MAX_USERNAME_LEN+1);
-					username_found = true;
-				} else {
-					goto error;
-				}
-				break;
-			// ignore garbage
-			default:
-				break;
+		case '#':
+		case '\0':
+			break;
+		// username
+		case 'u':
+			if (strncmp(line, "username=", strlen("username=")) != 0)
+				goto error;
+			line += strlen("username=");
+			if (looks_like_phone_number(line)) {
+				// it is known here that strlen(line) <= MAX_USERNAME_LEN
+				strncpy(username_buf, line, MAX_USERNAME_LEN+1);
+				username_found = true;
+			} else {
+				goto error;
+			}
+			break;
+		// ignore garbage
+		default:
+			break;
 		}
 	}
 	if (fclose(config_fp) != 0 || !username_found)
@@ -305,27 +305,27 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 		line_buf[len-1] = '\0';
 		const char *line = line_buf;
 		switch (*line) {
-			// Comment or empty line?
-			case '#':
-			case '\0':
-				break;
-			// recipient
-			case 'r':
-				if (strncmp(line, "recipient=", strlen("recipient=")) != 0)
+		// Comment or empty line?
+		case '#':
+		case '\0':
+			break;
+		// recipient
+		case 'r':
+			if (strncmp(line, "recipient=", strlen("recipient=")) != 0)
+				goto error;
+			line += strlen("recipient=");
+			if (looks_like_phone_number(line)) {
+				int username_len = strlen(line);
+				recipients_arr[recipient_count] = calloc(username_len+1, sizeof(char));
+				if (!recipients_arr[recipient_count])
 					goto error;
-				line += strlen("recipient=");
-				if (looks_like_phone_number(line)) {
-					int username_len = strlen(line);
-					recipients_arr[recipient_count] = calloc(username_len+1, sizeof(char));
-					if (!recipients_arr[recipient_count])
-						goto error;
-					strcpy(recipients_arr[recipient_count++], line);
-				} else {
-					goto error;
-				}
-				break;
-			default:
-				break;
+				strcpy(recipients_arr[recipient_count++], line);
+			} else {
+				goto error;
+			}
+			break;
+		default:
+			break;
 		}
 		// if the user specified more than MAX_RECIPIENTS recipients, just use
 		// the first few
