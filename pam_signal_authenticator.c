@@ -140,7 +140,7 @@ int make_message(const char *token, char message_buf[MAX_BUF_SIZE])
 	return PAM_SUCCESS;
 }
 
-int configs_exist_permissions_good(
+bool configs_exist_permissions_good(
 		pam_handle_t *pamh,
 		const Params *params,
 		struct passwd *pw,
