@@ -93,6 +93,7 @@ typedef struct params {
 	bool nullok;
 	bool strict_permissions;
 	bool silent;
+	bool ignore_spaces;
 	time_t time_limit;
 	char *allowed_chars;
 	size_t allowed_chars_len;
@@ -421,6 +422,24 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 	return PAM_SUCCESS;
 }
 
+/* result is a valid string as long as input is */
+void delete_spaces_inplace(char str[MAX_BUF_SIZE])
+{
+	if(!str)
+		return;
+	size_t i = 0;
+	size_t j = 0;
+	while (j < MAX_BUF_SIZE) {
+		if (str[j] == ' ')
+			j++;
+		else
+			str[i++] = str[j++];
+	}
+	while (i < MAX_BUF_SIZE) {
+		str[i++] = '\0';
+	}
+}
+
 int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE])
 {
 	char *response = NULL;
@@ -436,6 +455,8 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	if (response) {
 		strncpy(response_buf, response, MAX_BUF_SIZE);
 		free(response);
+		if (params->ignore_spaces)
+			delete_spaces_inplace(response_buf);
 		if (response_buf[MAX_BUF_SIZE - 1] != '\0' ) {
 			error(pamh, params, "Possible malicious attempt, response way too long.");
 			return PAM_AUTH_ERR;
@@ -445,6 +466,16 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	return PAM_CONV_ERR;
 }
 
+bool is_spacefree(char *str)
+{
+	if (!str)
+		return true;
+	while (*str) {
+		if (*str++ == ' ')
+			return false;
+	}
+	return true;
+}
 
 int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 {
@@ -452,13 +483,14 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 	int idx = -1;
 	opterr = 0; /* global, tells getopt to not print any errors */
 	while (1) {
-		static const char optstring[] = "+nNpsdt:C:T:";
+		static const char optstring[] = "+nNpsdIt:C:T:";
 		static struct option options[] = {
 			{"nullok",		0, 0, 'n'},
 			{"nonull",		0, 0, 'N'},
 			{"nostrictpermissions", 0, 0, 'p'},
 			{"silent",		0, 0, 's'},
 			{"debug",		0, 0, 'd'},
+			{"ignore-spaces",	0, 0, 'I'},
 			{"time-limit",		1, 0, 't'},
 			{"allowed-chars",	1, 0, 'C'},
 			{"token-len",		1, 0, 'T'},
@@ -489,6 +521,12 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			params->silent = true;
 		} else if (!idx--) { /* debug */
 			params->silent = false;
+		} else if (!idx--) { /*ignore-spaces */
+			params->ignore_spaces = true;
+			if (!is_spacefree(params->allowed_chars)) {
+				error(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
+				return PAM_AUTH_ERR;
+			}
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
@@ -498,6 +536,10 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 		} else if (!idx--) { /* allowed-chars */
 			strncpy(params->allowed_chars, optarg, 255);
 			params->allowed_chars[255] = '\0';
+			if (params->ignore_spaces && !is_spacefree(params->allowed_chars)) {
+				error(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
+				return PAM_AUTH_ERR;
+			}
 			size_t n = strlen(params->allowed_chars);
 			params->allowed_chars_len = n;
 			if (n < 8) {
@@ -550,6 +592,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		.nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
 		.strict_permissions = true,
 		.silent = flags & PAM_SILENT,
+		.ignore_spaces = false,
 		.time_limit = 0,
 		.allowed_chars = allowed_chars,
 		.allowed_chars_len = 0,
@@ -666,7 +709,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	struct timespec sent_time, completed_time;
 	if (params->time_limit) {
 		clock_gettime(CLOCK_MONOTONIC, &sent_time);
-		pam_info(pamh, "Token expires in %i seconds.", params->time_limit);
+		pam_info(pamh, "Token expires in %zu seconds.", params->time_limit);
 	}
 
 	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
