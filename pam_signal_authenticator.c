@@ -108,7 +108,7 @@ void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
 	va_end(ap);
 }
 
-void free_str_array(char *ptr[], size_t len) 
+void free_str_array(char *ptr[], size_t len)
 {
 	for (size_t i = 0; i < len; i++) {
 		if (ptr[i])
@@ -191,7 +191,7 @@ int drop_privileges(struct passwd *pw)
 }
 
 
-/* 
+/*
  * Gives the number of bits of entropy of a token of length token_len with
  * allowed_char_len possible characters.
  */
