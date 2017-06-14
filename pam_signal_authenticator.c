@@ -93,7 +93,7 @@ typedef struct params {
 	bool nullok;
 	bool strict_permissions;
 	bool silent;
-	bool timed;
+	time_t time_limit;
 	char *allowed_chars;
 	int allowed_chars_len;
 	int token_len;
@@ -452,14 +452,14 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 	int idx = -1;
 	opterr = 0; /* global, tells getopt to not print any errors */
 	while (1) {
-		static const char optstring[] = "+nNpsdtC:T:";
+		static const char optstring[] = "+nNpsdt:C:T:";
 		static struct option options[] = {
 			{"nullok",		0, 0, 'n'},
 			{"nonull",		0, 0, 'N'},
 			{"nostrictpermissions", 0, 0, 'p'},
 			{"silent",		0, 0, 's'},
 			{"debug",		0, 0, 'd'},
-			{"timed",		0, 0, 't'},
+			{"time-limit",		1, 0, 't'},
 			{"allowed-chars",	1, 0, 'C'},
 			{"token-len",		1, 0, 'T'},
 			{0, 0, 0, 0}
@@ -489,8 +489,12 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			params->silent = true;
 		} else if (!idx--) { /* debug */
 			params->silent = false;
-		} else if (!idx--) { /* timed */
-			params->timed = true;
+		} else if (!idx--) { /* time-limit */
+			params->time_limit = (time_t)atoi(optarg);
+			if (params->time_limit > 3600) {
+				pam_syslog(pamh, LOG_ERR, "allowed time to login is more than an hour, too long, aborting");
+				return PAM_AUTH_ERR;
+			}
 		} else if (!idx--) { /* allowed-chars */
 			strncpy(params->allowed_chars, optarg, 255);
 			params->allowed_chars[255] = '\0';
@@ -546,7 +550,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		.nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
 		.strict_permissions = true,
 		.silent = flags & PAM_SILENT,
-		.timed = false,
+		.time_limit = 0,
 		.allowed_chars = allowed_chars,
 		.allowed_chars_len = 0,
 		.token_len = TOKEN_LEN
@@ -660,9 +664,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 
 	struct timespec sent_time, completed_time;
-	if (params->timed) {
+	if (params->time_limit) {
 		clock_gettime(CLOCK_MONOTONIC, &sent_time);
-		pam_info(pamh, "Token expires in %i seconds.", TOKEN_TIME_TO_EXPIRE);
+		pam_info(pamh, "Token expires in %i seconds.", params->time_limit);
 	}
 
 	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
@@ -677,9 +681,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 	const char *response = response_buf;
 
-	if (params->timed) {
+	if (params->time_limit) {
 		clock_gettime(CLOCK_MONOTONIC, &completed_time);
-		if (completed_time.tv_sec > sent_time.tv_sec + TOKEN_TIME_TO_EXPIRE) {
+		if (completed_time.tv_sec > sent_time.tv_sec + params->time_limit) {
 			error(pamh, params, "took too long to respond, token expired");
 			goto cleanup_then_return_error;
 		}
