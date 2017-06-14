@@ -284,10 +284,9 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 
 	return PAM_SUCCESS;
 
-	error: {
-		fclose(config_fp);
-		return PAM_AUTH_ERR;
-	}
+error:
+	fclose(config_fp);
+	return PAM_AUTH_ERR;
 }
 
 int parse_signal_recipients(const char *config_filename, char *recipients_arr[MAX_RECIPIENTS])
@@ -337,10 +336,9 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 
 	return PAM_SUCCESS;
 
-	error: {
-		fclose(config_fp);
-		return PAM_AUTH_ERR;
-	}
+error:
+	fclose(config_fp);
+	return PAM_AUTH_ERR;
 }
 
 int build_signal_send_command(
@@ -543,7 +541,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		pam_syslog(pamh, LOG_ERR, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
 		return PAM_AUTH_ERR;
 	}
-	int NULL_FAILURE = params->nullok? PAM_SUCCESS : PAM_AUTH_ERR;
+	int NULL_FAILURE = params->nullok ? PAM_SUCCESS : PAM_AUTH_ERR;
 
 	//determine the user
 	const char *user = NULL;
@@ -677,16 +675,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	free_str_array(recipients_arr, MAX_RECIPIENTS);
 	return PAM_SUCCESS;
 
-	null_failure : {
-		if (params->nullok)
-			pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
-		return NULL_FAILURE;
-	}
-
-	cleanup_then_return_error : {
-		free_str_array(recipients_arr, MAX_RECIPIENTS);
-		return PAM_AUTH_ERR;
-   }
+null_failure:
+	if (params->nullok)
+		pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
+	return NULL_FAILURE;
+cleanup_then_return_error:
+	free_str_array(recipients_arr, MAX_RECIPIENTS);
+	return PAM_AUTH_ERR;
 }
 
 /*
