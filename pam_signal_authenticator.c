@@ -442,6 +442,13 @@ void delete_spaces_inplace(char str[MAX_BUF_SIZE])
 
 int wait_for_response(pam_handle_t *pamh, const Params *params, char response_buf[MAX_BUF_SIZE])
 {
+	struct timespec sent_time;
+	struct timespec completed_time;
+	if (params->time_limit) {
+		clock_gettime(CLOCK_MONOTONIC, &sent_time);
+		pam_info(pamh, "Token expires in %zu seconds.", params->time_limit);
+	}
+
 	char *response = NULL;
 	int ret = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, SSH_PROMPT);
 	if (ret != PAM_SUCCESS) {
@@ -455,12 +462,19 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 	if (response) {
 		strncpy(response_buf, response, MAX_BUF_SIZE);
 		free(response);
-		if (params->ignore_spaces)
-			delete_spaces_inplace(response_buf);
 		if (response_buf[MAX_BUF_SIZE - 1] != '\0' ) {
 			errorx(pamh, params, "Possible malicious attempt, response way too long.");
 			return PAM_AUTH_ERR;
 		}
+		if (params->time_limit) {
+			clock_gettime(CLOCK_MONOTONIC, &completed_time);
+			if (completed_time.tv_sec > sent_time.tv_sec + params->time_limit) {
+				errorx(pamh, params, "took too long to respond, token expired");
+				return PAM_AUTH_ERR;
+			}
+		}
+		if (params->ignore_spaces)
+			delete_spaces_inplace(response_buf);
 		return PAM_SUCCESS;
 	}
 	return PAM_CONV_ERR;
@@ -706,12 +720,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		goto cleanup_then_return_auth_err;
 	}
 
-	struct timespec sent_time, completed_time;
-	if (params->time_limit) {
-		clock_gettime(CLOCK_MONOTONIC, &sent_time);
-		pam_info(pamh, "Token expires in %zu seconds.", params->time_limit);
-	}
-
 	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
 		errorx(pamh, params, "signal-cli send command failed");
 		goto cleanup_then_return_auth_err;
@@ -723,15 +731,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		goto cleanup_then_return_auth_err;
 	}
 	const char *response = response_buf;
-
-	if (params->time_limit) {
-		clock_gettime(CLOCK_MONOTONIC, &completed_time);
-		if (completed_time.tv_sec > sent_time.tv_sec + params->time_limit) {
-			errorx(pamh, params, "took too long to respond, token expired");
-			goto cleanup_then_return_auth_err;
-		}
-	}
-
 	if (strlen(response) != params->token_len || strncmp(response, token, params->token_len) != 0) {
 		errorx(pamh, params, "incorrect token");
 		goto cleanup_then_return_auth_err;
