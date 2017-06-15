@@ -100,7 +100,7 @@ typedef struct params {
 	size_t token_len;
 } Params;
 
-void error(pam_handle_t *pamh, const Params *params, const char *msg, ...)
+void errorx(pam_handle_t *pamh, const Params *params, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
@@ -155,13 +155,13 @@ bool configs_exist_permissions_good(
 		return false;
 	if (params->strict_permissions) {
 		if (s.st_uid != pw->pw_uid) {
-			error(pamh, params, "User uid=%d, but config uid=%d", pw->pw_uid, s.st_uid);
+			errorx(pamh, params, "User uid=%d, but config uid=%d", pw->pw_uid, s.st_uid);
 			return false;
 		} else if (s.st_gid != pw->pw_gid) {
-			error(pamh, params, "User gid=%d, but config gid=%d", pw->pw_gid, s.st_gid);
+			errorx(pamh, params, "User gid=%d, but config gid=%d", pw->pw_gid, s.st_gid);
 			return false;
 		} else if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-			error(pamh, params, "config has bad permissions, try chmod o-rwx");
+			errorx(pamh, params, "config has bad permissions, try chmod o-rwx");
 			return false;
 		}
 	}
@@ -171,12 +171,12 @@ bool configs_exist_permissions_good(
 		return false;
 	/* Option --nostrictpermissions does not apply to the admin */
 	if (s.st_uid != signal_pw->pw_uid || s.st_gid != signal_pw->pw_gid) {
-		error(pamh, params, "signal-authenticator uid=%d, but config uid=%d",
+		errorx(pamh, params, "signal-authenticator uid=%d, but config uid=%d",
 			signal_pw->pw_uid, s.st_uid);
 		return false;
 	}
 	if ((s.st_mode & S_IROTH) || (s.st_mode & S_IWOTH) || (s.st_mode & S_IXOTH)) {
-		error(pamh, params, "signal-authenticator config has bad permissions, try chmod o-rwx");
+		errorx(pamh, params, "signal-authenticator config has bad permissions, try chmod o-rwx");
 		return false;
 	}
 	return true;
@@ -267,14 +267,14 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 			break;
 		case 'u': /* username */
 			if (strncmp(line, "username=", strlen("username=")) != 0)
-				goto error;
+				goto errorx;
 			line += strlen("username=");
 			if (looks_like_phone_number(line)) {
 				/* It is known here that strlen(line) <= MAX_USERNAME_LEN */
 				strncpy(username_buf, line, MAX_USERNAME_LEN + 1);
 				username_found = true;
 			} else {
-				goto error;
+				goto errorx;
 			}
 			break;
 		default: /* Ignore garbage */
@@ -286,7 +286,7 @@ int parse_signal_username(const char *config_filename, char username_buf[MAX_USE
 
 	return PAM_SUCCESS;
 
-error:
+errorx:
 	fclose(config_fp);
 	return PAM_AUTH_ERR;
 }
@@ -311,16 +311,16 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 			break;
 		case 'r': /* recipient */
 			if (strncmp(line, "recipient=", strlen("recipient=")) != 0)
-				goto error;
+				goto errorx;
 			line += strlen("recipient=");
 			if (looks_like_phone_number(line)) {
 				size_t username_len = strlen(line);
 				recipients_arr[recipient_count] = calloc(username_len + 1, sizeof(char));
 				if (!recipients_arr[recipient_count])
-					goto error;
+					goto errorx;
 				strcpy(recipients_arr[recipient_count++], line);
 			} else {
-				goto error;
+				goto errorx;
 			}
 			break;
 		default:
@@ -339,7 +339,7 @@ int parse_signal_recipients(const char *config_filename, char *recipients_arr[MA
 
 	return PAM_SUCCESS;
 
-error:
+errorx:
 	fclose(config_fp);
 	return PAM_AUTH_ERR;
 }
@@ -410,7 +410,7 @@ int signal_cli(pam_handle_t *pamh, const Params *params,
 		}
 		execv(SIGNAL_CLI, argv);
 	} else if (c_pid <  0) {
-		error(pamh, params, "failed to fork child for sending message");
+		errorx(pamh, params, "failed to fork child for sending message");
 		return PAM_AUTH_ERR;
 	}
 	/* parent */
@@ -448,7 +448,7 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 		if (response)
 			free(response);
 		if (ret == PAM_BUF_ERR)
-			error(pamh, params, "Possible malicious attempt, PAM_BUF_ERR.");
+			errorx(pamh, params, "Possible malicious attempt, PAM_BUF_ERR.");
 		return ret;
 	}
 
@@ -458,7 +458,7 @@ int wait_for_response(pam_handle_t *pamh, const Params *params, char response_bu
 		if (params->ignore_spaces)
 			delete_spaces_inplace(response_buf);
 		if (response_buf[MAX_BUF_SIZE - 1] != '\0' ) {
-			error(pamh, params, "Possible malicious attempt, response way too long.");
+			errorx(pamh, params, "Possible malicious attempt, response way too long.");
 			return PAM_AUTH_ERR;
 		}
 		return PAM_SUCCESS;
@@ -481,7 +481,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 {
 	int c;
 	int idx = -1;
-	opterr = 0; /* global, tells getopt to not print any errors */
+	opterr = 0; /* global, tells getopt to not print any errorxs */
 	while (1) {
 		static const char optstring[] = "+nNpsdIt:C:T:";
 		static struct option options[] = {
@@ -509,7 +509,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			break;
 		}
 		if (idx < 0) {
-			error(pamh, NULL, "Error processing arguments, aborting");
+			errorx(pamh, NULL, "errorx processing arguments, aborting");
 			return PAM_AUTH_ERR;
 		} else if (!idx--) { /* nullok */
 			params->nullok = true;
@@ -524,45 +524,45 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 		} else if (!idx--) { /*ignore-spaces */
 			params->ignore_spaces = true;
 			if (!is_spacefree(params->allowed_chars)) {
-				error(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
+				errorx(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
-				error(pamh, NULL, "allowed time to login is more than an hour, too long, aborting");
+				errorx(pamh, NULL, "allowed time to login is more than an hour, too long, aborting");
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* allowed-chars */
 			strncpy(params->allowed_chars, optarg, 255);
 			params->allowed_chars[255] = '\0';
 			if (params->ignore_spaces && !is_spacefree(params->allowed_chars)) {
-				error(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
+				errorx(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
 				return PAM_AUTH_ERR;
 			}
 			size_t n = strlen(params->allowed_chars);
 			params->allowed_chars_len = n;
 			if (n < 8) {
-				error(pamh, NULL, "allowed-chars is too short, must be at least 8 characters, aborting");
+				errorx(pamh, NULL, "allowed-chars is too short, must be at least 8 characters, aborting");
 				return PAM_AUTH_ERR;
 			} else if (256 % n != 0) {
-				error(pamh, NULL, "allowed-chars: %s\nlength: %zu\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
+				errorx(pamh, NULL, "allowed-chars: %s\nlength: %zu\nlength must be a divisor of 256, aborting", params->allowed_chars, n);
 				return PAM_AUTH_ERR;
 			}
 		} else if (!idx--) { /* token-len */
 			size_t len = (size_t)atoi(optarg);
 			if (len > MAX_TOKEN_LEN) {
-				error(pamh, NULL, "invalid token length: %zu", len);
+				errorx(pamh, NULL, "invalid token length: %zu", len);
 				return PAM_AUTH_ERR;
 			}
 			params->token_len = len;
 		} else {
-			error(pamh, NULL, "Error processing command line arguments, aborting");
+			errorx(pamh, NULL, "errorx processing command line arguments, aborting");
 			return PAM_AUTH_ERR;
 		}
 	}
 	if (optind != argc) {
-		error(pamh, NULL, "Non-option argument given, did you forget --? Aborting");
+		errorx(pamh, NULL, "Non-option argument given, did you forget --? Aborting");
 		return PAM_AUTH_ERR;
 	}
 
@@ -573,7 +573,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 
 	int bits = bits_of_entropy(params->token_len, params->allowed_chars_len);
 	if (bits < MINIMUM_BITS_OF_ENTROPY) {
-		error(pamh, NULL, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
+		errorx(pamh, NULL, "Only %i bits of entropy per token, increase length or allow more characters, aborting", bits);
 		return PAM_AUTH_ERR;
 	}
 	return PAM_SUCCESS;
@@ -607,7 +607,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	/* Determine the user */
 	const char *user = NULL;
 	if ((ret = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS || user == NULL) {
-		error(pamh, params, "failed to get user");
+		errorx(pamh, params, "failed to get user");
 		return ret;
 	}
 
@@ -617,7 +617,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	char passdw_char_buf[MAX_BUF_SIZE] = {0};
 	ret = getpwnam_r(user, &pw_s, passdw_char_buf, sizeof(passdw_char_buf), &pw);
 	if (ret != 0 || pw == NULL || pw->pw_dir == NULL || pw->pw_dir[0] != '/') {
-		error(pamh, params, "failed to get passwd struct");
+		errorx(pamh, params, "failed to get passwd struct");
 		return PAM_AUTH_ERR;
 	}
 
@@ -628,20 +628,20 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	ret = getpwnam_r(SYSTEM_SIGNAL_USER, &signal_pw_s, signal_passdw_char_buf,
 			sizeof(signal_passdw_char_buf), &signal_pw);
 	if (ret != 0 || signal_pw == NULL || signal_pw->pw_dir == NULL || signal_pw->pw_dir[0] != '/') {
-		error(pamh, params, "failed to get signal passwd struct");
+		errorx(pamh, params, "failed to get signal passwd struct");
 		return PAM_AUTH_ERR;
 	}
 
 	/* Check that user wants 2 factor authentication */
 	char config_filename_buf[MAX_BUF_SIZE] = {0};
 	if (get_2fa_config_filename(pw->pw_dir, config_filename_buf) != PAM_SUCCESS) {
-		error(pamh, params, "failed to get config filename");
+		errorx(pamh, params, "failed to get config filename");
 		goto null_failure;
 	}
 
 	char signal_config_filename_buf[MAX_BUF_SIZE] = {0};
 	if (get_2fa_config_filename(signal_pw->pw_dir, signal_config_filename_buf) != PAM_SUCCESS) {
-		error(pamh, params, "failed to get signal-authenticator config filename");
+		errorx(pamh, params, "failed to get signal-authenticator config filename");
 		goto null_failure;
 	}
 
@@ -661,49 +661,49 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 
 	char username_buf[MAX_USERNAME_LEN + 1] = {0};
 	if (parse_signal_username(signal_config_filename, username_buf) != PAM_SUCCESS) {
-		error(pamh, params, "Failed to parse sender username from config");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "Failed to parse sender username from config");
+		goto cleanup_then_return_errorx;
 	}
 	const char *username = username_buf;
 
 	char token_buf[MAX_TOKEN_LEN + 1] = {0};
 	if (generate_random_token(token_buf, params) != PAM_SUCCESS) {
-		error(pamh, params, "failed to generate random token");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "failed to generate random token");
+		goto cleanup_then_return_errorx;
 	}
 	const char *token = token_buf;
 
 	char message_buf[MAX_BUF_SIZE] = {0};
 	if (make_message(token, message_buf) != PAM_SUCCESS) {
-		error(pamh, params, "failed to make message from token");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "failed to make message from token");
+		goto cleanup_then_return_errorx;
 	}
 	const char *message = message_buf;
 
 	char *recipients_arr[MAX_RECIPIENTS] = {0};
 	if (parse_signal_recipients(config_filename, recipients_arr) != PAM_SUCCESS) {
-		error(pamh, params, "Failed to parse recipients from config");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "Failed to parse recipients from config");
+		goto cleanup_then_return_errorx;
 	}
 
 	const char *signal_send_args_arr[6 + MAX_RECIPIENTS + 1] = {0};
 	ret = build_signal_send_command(username, recipients_arr, message, signal_send_args_arr);
 	if (ret != PAM_SUCCESS) {
-		error(pamh, params, "Failed to build signal send command");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "Failed to build signal send command");
+		goto cleanup_then_return_errorx;
 	}
 	char * const * signal_send_args = (char * const *)signal_send_args_arr;
 
 	const char *signal_receive_args_arr[8];
 	if (build_signal_receive_command(username, signal_receive_args_arr) != PAM_SUCCESS) {
-		error(pamh, params, "Failed to build signal receive command");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "Failed to build signal receive command");
+		goto cleanup_then_return_errorx;
 	}
 
 	char * const * signal_receive_args = (char * const *)signal_receive_args_arr;
 	if (signal_cli(pamh, params, signal_pw, signal_receive_args) != PAM_SUCCESS) {
-		error(pamh, params, "signal-cli receive command failed");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "signal-cli receive command failed");
+		goto cleanup_then_return_errorx;
 	}
 
 	struct timespec sent_time, completed_time;
@@ -713,28 +713,28 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 
 	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
-		error(pamh, params, "signal-cli send command failed");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "signal-cli send command failed");
+		goto cleanup_then_return_errorx;
 	}
 
 	char response_buf[MAX_BUF_SIZE] = {0};
 	if (wait_for_response(pamh, params, response_buf) != PAM_SUCCESS) {
-		error(pamh, params, "failed response");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "failed response");
+		goto cleanup_then_return_errorx;
 	}
 	const char *response = response_buf;
 
 	if (params->time_limit) {
 		clock_gettime(CLOCK_MONOTONIC, &completed_time);
 		if (completed_time.tv_sec > sent_time.tv_sec + params->time_limit) {
-			error(pamh, params, "took too long to respond, token expired");
-			goto cleanup_then_return_error;
+			errorx(pamh, params, "took too long to respond, token expired");
+			goto cleanup_then_return_errorx;
 		}
 	}
 
 	if (strlen(response) != params->token_len || strncmp(response, token, params->token_len) != 0) {
-		error(pamh, params, "incorrect token");
-		goto cleanup_then_return_error;
+		errorx(pamh, params, "incorrect token");
+		goto cleanup_then_return_errorx;
 	}
 
 	free_str_array(recipients_arr, MAX_RECIPIENTS);
@@ -744,7 +744,7 @@ null_failure:
 	if (params->nullok)
 		pam_info(pamh, "Authenticated fully. User has not enabled two-factor authentication.");
 	return NULL_FAILURE;
-cleanup_then_return_error:
+cleanup_then_return_errorx:
 	free_str_array(recipients_arr, MAX_RECIPIENTS);
 	return PAM_AUTH_ERR;
 }
