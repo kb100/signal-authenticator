@@ -1,0 +1,17 @@
+[Unit]
+Description=Two factor authentication through Signal
+Requires=dbus.socket
+After=dbus.socket
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=dbus
+Environment="SIGNAL_CLI_OPTS=-Xms2m"
+ExecStart=%dir%/bin/signal-cli -u %number% --config %signalhome%/.config/signal daemon --ignore-attachments --system
+StandardOutput=null
+User=signal-authenticator
+BusName=org.asamk.Signal
+
+[Install]
+Alias=dbus-org.asamk.Signal.service

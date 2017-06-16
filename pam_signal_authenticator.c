@@ -94,6 +94,7 @@ typedef struct params {
 	bool strict_permissions;
 	bool silent;
 	bool ignore_spaces;
+	bool use_dbus;
 	time_t time_limit;
 	char *allowed_chars;
 	size_t allowed_chars_len;
@@ -345,6 +346,7 @@ cleanup_then_return_auth_err:
 }
 
 int build_signal_send_command(
+		const Params *params,
 		const char *sender,
 		char *recipients[MAX_RECIPIENTS],
 		const char *message,
@@ -352,21 +354,26 @@ int build_signal_send_command(
 {
 	if (sender == NULL || recipients == NULL || message == NULL || args == NULL)
 		return PAM_AUTH_ERR;
+	int dbus_offset = params->use_dbus ? -1 : 0;
 	args[0] = "signal-cli";
-	args[1] = "-u";
-	args[2] = sender;
-	args[3] = "send";
-	args[4] = "-m";
-	args[5] = message;
-	for (size_t i = 6; i < 6 + MAX_RECIPIENTS; i++) {
-		if (recipients[i - 6] && recipients[i - 6][0]) {
-			args[i] = recipients[i - 6];
+	if (!params->use_dbus) {
+		args[1] = "-u";
+		args[2] = sender;
+	} else {
+		args[1] = "--dbus-system";
+	}
+	args[3 + dbus_offset] = "send";
+	args[4 + dbus_offset] = "-m";
+	args[5 + dbus_offset] = message;
+	for (size_t i = 0; i <  MAX_RECIPIENTS; i++) {
+		if (recipients[i] && recipients[i][0]) {
+			args[i + 6 + dbus_offset] = recipients[i];
 		} else {
-			args[i] = (const char *)NULL;
+			args[i + 6 + dbus_offset] = (const char *)NULL;
 			break;
 		}
 	}
-	args[6 + MAX_RECIPIENTS] = (const char *)NULL;
+	args[6 + dbus_offset + MAX_RECIPIENTS] = (const char *)NULL;
 	return PAM_SUCCESS;
 }
 
@@ -497,7 +504,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 	int idx = -1;
 	opterr = 0; /* global, tells getopt to not print any errors */
 	while (1) {
-		static const char optstring[] = "+nNpsdIt:C:T:";
+		static const char optstring[] = "+nNpsdIDt:C:T:";
 		static struct option options[] = {
 			{"nullok",		0, 0, 'n'},
 			{"nonull",		0, 0, 'N'},
@@ -505,6 +512,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			{"silent",		0, 0, 's'},
 			{"debug",		0, 0, 'd'},
 			{"ignore-spaces",	0, 0, 'I'},
+			{"dbus",		0, 0, 'D'},
 			{"time-limit",		1, 0, 't'},
 			{"allowed-chars",	1, 0, 'C'},
 			{"token-len",		1, 0, 'T'},
@@ -541,6 +549,8 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 				errorx(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
 				return PAM_AUTH_ERR;
 			}
+		} else if (!idx--) {
+			params->use_dbus = true;
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
@@ -607,6 +617,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		.strict_permissions = true,
 		.silent = flags & PAM_SILENT,
 		.ignore_spaces = false,
+		.use_dbus = false,
 		.time_limit = 0,
 		.allowed_chars = allowed_chars,
 		.allowed_chars_len = 0,
@@ -701,23 +712,25 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 
 	const char *signal_send_args_arr[6 + MAX_RECIPIENTS + 1] = {0};
-	ret = build_signal_send_command(username, recipients_arr, message, signal_send_args_arr);
+	ret = build_signal_send_command(params, username, recipients_arr, message, signal_send_args_arr);
 	if (ret != PAM_SUCCESS) {
 		errorx(pamh, params, "Failed to build signal send command");
 		goto cleanup_then_return_auth_err;
 	}
 	char * const * signal_send_args = (char * const *)signal_send_args_arr;
 
-	const char *signal_receive_args_arr[8];
-	if (build_signal_receive_command(username, signal_receive_args_arr) != PAM_SUCCESS) {
-		errorx(pamh, params, "Failed to build signal receive command");
-		goto cleanup_then_return_auth_err;
-	}
+	if (!params->use_dbus) {
+		const char *signal_receive_args_arr[8];
+		if (build_signal_receive_command(username, signal_receive_args_arr) != PAM_SUCCESS) {
+			errorx(pamh, params, "Failed to build signal receive command");
+			goto cleanup_then_return_auth_err;
+		}
 
-	char * const * signal_receive_args = (char * const *)signal_receive_args_arr;
-	if (signal_cli(pamh, params, signal_pw, signal_receive_args) != PAM_SUCCESS) {
-		errorx(pamh, params, "signal-cli receive command failed");
-		goto cleanup_then_return_auth_err;
+		char * const * signal_receive_args = (char * const *)signal_receive_args_arr;
+		if (signal_cli(pamh, params, signal_pw, signal_receive_args) != PAM_SUCCESS) {
+			errorx(pamh, params, "signal-cli receive command failed");
+			goto cleanup_then_return_auth_err;
+		}
 	}
 
 	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {

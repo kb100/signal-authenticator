@@ -17,8 +17,12 @@ endif
 ifndef PREFIX
 PREFIX = "/usr/local"
 endif
+ifndef SHARE_DIR
+SHARE_DIR = $(PREFIX)/share
+endif
 SIGNAL_USER = "signal-authenticator"
 PSA = pam_signal_authenticator
+SA = signal-authenticator
 
 all: $(PSA).so
 
@@ -33,6 +37,12 @@ install:
 	install -m 755 signal-auth-setup $(PREFIX)/bin/signal-auth-setup 
 	install -m 755 signal-auth-link $(PREFIX)/bin/signal-auth-link 
 	install -m 755 signal-auth-opt-in $(PREFIX)/bin/signal-auth-opt-in 
+	mkdir -p $(SHARE_DIR)/$(SA)
+	install -m 644 share/org.asamk.Signal.conf $(SHARE_DIR)/$(SA)/org.asamk.Signal.conf
+	install -m 644 share/org.asamk.Signal.service $(SHARE_DIR)/$(SA)/org.asamk.Signal.service
+	install -m 644 share/signal-authenticator.service $(SHARE_DIR)/$(SA)/signal-authenticator.service
+	install -m 644 share/sample_pam_sshd $(SHARE_DIR)/$(SA)/sample_pam_sshd
+	install -m 644 share/sample_sshd_config $(SHARE_DIR)/$(SA)/sample_sshd_config
 	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
 
 uninstall:
@@ -40,6 +50,7 @@ uninstall:
 	rm -f $(PREFIX)/bin/signal-auth-setup
 	rm -f $(PREFIX)/bin/signal-auth-link
 	rm -f $(PREFIX)/bin/signal-auth-opt-in
+	rm -rf $(SHARE_DIR)/$(SA)
 	deluser --system --quiet $(SIGNAL_USER)
 
 clean:
