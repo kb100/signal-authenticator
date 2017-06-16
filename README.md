@@ -31,16 +31,22 @@ authentication, does not apply if user tried to opt in but has a bad config
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
-`--timed` tokens expire after 90 seconds
-
 `--silent` no warnings or errors will be written to the system log
 
 `--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
+`--ignore-spaces` ignore spaces in tokens (allowed characters must not contain
+a space)
+
+`--dbus` speed things up by using signal-cli's experimental system dbus interface (requires
+signal-authenticator.service to be enabled)
+
+`--time-limit [n]` tokens expire after n seconds
+
 `--allowed-chars [chars]` tokens will be made up of these characters only. The
 number of allowed characters must be a divisor of 256.
 
-`--token-len [n]` sets length of 1-time tokens.
+`--token-len [n]` sets the length of 1-time tokens.
 
 ## Setup
 
