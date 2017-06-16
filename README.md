@@ -204,9 +204,9 @@ sudo cp $DIR/org.asamk.Signal.service /usr/share/dbus-1/system-services
 sudo cp $DIR/signal-authenticator.service /etc/systemd/system
 username=$(sudo cat ~signal-authenticator/.signal_authenticator | grep -o "+.*$")
 sudo sed -i -e "s|%number%|$username|" /etc/systemd/system/signal-authenticator.service
-systemctl daemon-reload
-systemctl enable signal-authenticator.service
-systemctl reload dbus.service
+sudo systemctl daemon-reload
+sudo systemctl enable signal-authenticator.service
+sudo systemctl reload dbus.service
 ```
 At this point, the `--dbus` flag will work when passed to signal-authenticator
 in your `/etc/pam.d/sshd`.
