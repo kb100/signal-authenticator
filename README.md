@@ -185,6 +185,41 @@ The two devices will then link and the signal number is shared between the
 linked devices. The primary is the only one that can add or remove linked
 devices.
 
+## Setup (use the system dbus)
+
+Using a long-lived signal-cli instance that uses the system dbus offers a noticeable
+speedup for users because it bypasses signal-cli's significant startup overhead.
+First, setup signal-authenticator without the dbus option.
+The dbus service file, dbus configuration file, and the systemd service file
+should already be available in `/usr/local/share/signal-authenticator`.
+Theoretically, systemd is not required and you could use another system daemon
+manager, but our instructions assume you are using systemd.
+Copy the files to the correct locations, have sed put in the correct phone number to
+send tokens from, and enable the service:
+
+```
+DIR="/usr/local/share/signal-authenticator"
+sudo cp $DIR/org.asamk.Signal.conf /etc/dbus-1/system.d
+sudo cp $DIR/org.asamk.Signal.service /usr/share/dbus-1/system-services
+sudo cp $DIR/signal-authenticator.service /etc/systemd/system
+username=$(sudo cat ~signal-authenticator/.signal_authenticator | grep -o "+.*$")
+sudo sed -i -e "s|%number%|$username|" /etc/systemd/system/signal-authenticator.service
+systemctl daemon-reload
+systemctl enable signal-authenticator.service
+systemctl reload dbus.service
+```
+At this point, the `--dbus` flag will work when passed to signal-authenticator
+in your `/etc/pam.d/sshd`.
+While the long-lived signal-cli is running, the authenticator will ONLY work
+with the `--dbus` flag.
+If you want to go back to not using the dbus, you must stop the
+signal-authenticator service:
+
+```
+systemctl stop signal-authenticator.service
+systemctl disable signal-authenticator.service
+```
+
 ## How can I require other combinations of authentication?
 
 Other multi-factor authentication combinations can be achieved by changing
