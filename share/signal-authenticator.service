@@ -8,7 +8,7 @@ After=network-online.target
 [Service]
 Type=dbus
 Environment="SIGNAL_CLI_OPTS=-Xms2m"
-ExecStart=%dir%/bin/signal-cli -u %number% --config %signalhome%/.config/signal daemon --ignore-attachments --system
+ExecStart=/usr/local/bin/signal-cli -u %number% --config /var/lib/signal-authenticator/.config/signal daemon --ignore-attachments --system
 StandardOutput=null
 User=signal-authenticator
 BusName=org.asamk.Signal

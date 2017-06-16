@@ -549,7 +549,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 				errorx(pamh, NULL, "cannot ignore spaces if space is an allowed token character, aborting");
 				return PAM_AUTH_ERR;
 			}
-		} else if (!idx--) {
+		} else if (!idx--) { /* dbus */
 			params->use_dbus = true;
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
