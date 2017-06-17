@@ -99,6 +99,7 @@ typedef struct params {
 	char *allowed_chars;
 	size_t allowed_chars_len;
 	size_t token_len;
+	size_t add_space_every;
 } Params;
 
 void errorx(pam_handle_t *pamh, const Params *params, const char *msg, ...)
@@ -130,10 +131,35 @@ int get_2fa_config_filename(const char* home_dir, char fn_buf[MAX_BUF_SIZE])
 	return PAM_SUCCESS;
 }
 
-int make_message(const char *token, char message_buf[MAX_BUF_SIZE])
+void make_spaced_version_of_token(const Params *params, const char * token,
+			 char spaced_token_buf[MAX_BUF_SIZE])
+{
+	if (!params || !params->add_space_every || !token || !spaced_token_buf)
+		return;
+	size_t spaces_to_add = 2 * (params->token_len / params->add_space_every);
+	if (spaces_to_add + params->token_len + 1 >= MAX_BUF_SIZE)
+		return;
+	for (size_t i = 1; *token; i++, token++, spaced_token_buf++) {
+		*spaced_token_buf = *token;
+		if (*(token+1) && i % params->add_space_every == 0) {
+			*++spaced_token_buf = ' ';
+			*++spaced_token_buf = ' ';
+		}
+	}
+	*spaced_token_buf = '\0';
+}
+
+int make_message(const Params *params, const char *token, char message_buf[MAX_BUF_SIZE])
 {
 	if (token == NULL || message_buf == NULL)
 		return PAM_AUTH_ERR;
+
+	char spaced_token_buf[MAX_BUF_SIZE] = {0};
+	if (params->add_space_every) {
+		make_spaced_version_of_token(params, token, spaced_token_buf);
+		token = spaced_token_buf;
+	}
+
 	size_t buf_size = sizeof(char[MAX_BUF_SIZE]);
 	int snp_ret = snprintf(message_buf, buf_size,
 			"%s%s%s", SIGNAL_MESSAGE_PREFIX, token, SIGNAL_MESSAGE_SUFFIX);
@@ -504,7 +530,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 	int idx = -1;
 	opterr = 0; /* global, tells getopt to not print any errors */
 	while (1) {
-		static const char optstring[] = "+nNpsdIDt:C:T:";
+		static const char optstring[] = "+nNpsdIDa:t:C:T:";
 		static struct option options[] = {
 			{"nullok",		0, 0, 'n'},
 			{"nonull",		0, 0, 'N'},
@@ -513,6 +539,7 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			{"debug",		0, 0, 'd'},
 			{"ignore-spaces",	0, 0, 'I'},
 			{"dbus",		0, 0, 'D'},
+			{"add-space-every",	1, 0, 'a'},
 			{"time-limit",		1, 0, 't'},
 			{"allowed-chars",	1, 0, 'C'},
 			{"token-len",		1, 0, 'T'},
@@ -551,6 +578,9 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 			}
 		} else if (!idx--) { /* dbus */
 			params->use_dbus = true;
+		} else if (!idx--) { /* add-space-every */
+			params->add_space_every = (size_t)atoi(optarg);
+			params->ignore_spaces = true;
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
@@ -621,7 +651,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		.time_limit = 0,
 		.allowed_chars = allowed_chars,
 		.allowed_chars_len = 0,
-		.token_len = TOKEN_LEN
+		.token_len = TOKEN_LEN,
+		.add_space_every = 0
 	};
 	Params *params = &params_s;
 	if ((ret = parse_args(pamh, params, argc, argv)) != PAM_SUCCESS)
@@ -699,7 +730,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	const char *token = token_buf;
 
 	char message_buf[MAX_BUF_SIZE] = {0};
-	if (make_message(token, message_buf) != PAM_SUCCESS) {
+	if (make_message(params, token, message_buf) != PAM_SUCCESS) {
 		errorx(pamh, params, "failed to make message from token");
 		goto cleanup_then_return_auth_err;
 	}

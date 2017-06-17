@@ -35,8 +35,11 @@ two-factor authentication
 
 `--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
-`--ignore-spaces` ignore spaces in tokens (allowed characters must not contain
+`--ignore-spaces` ignore spaces in user's response (allowed characters must not contain
 a space)
+
+`--add-space-every [n]` add a space every n characters so users can more easily
+read the token (implies `--ignore-spaces`)
 
 `--dbus` speed things up by using signal-cli's experimental system dbus interface (requires
 signal-authenticator.service to be enabled)
