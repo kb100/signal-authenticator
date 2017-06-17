@@ -54,6 +54,6 @@ uninstall:
 	deluser --system --quiet $(SIGNAL_USER)
 
 clean:
-	rm -f pam_signal_authenticator.so
+	rm -f $(PSA).so
 
 .PHONY: warn all clean install uninstall
