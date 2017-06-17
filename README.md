@@ -61,7 +61,7 @@ Install [signal-cli](https://github.com/AsamK/signal-cli) and java:
 ```
 sudo apt-get update
 sudo apt-get install default-jre
-export VERSION=0.5.5
+export VERSION=0.5.6
 wget https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
 sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
 sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/
