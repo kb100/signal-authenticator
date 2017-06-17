@@ -21,35 +21,38 @@ See the [contributing page](CONTRIBUTING.md) for details.
 
 ## Options
 
-`--nullok` (recommended) allows users who have not opted in to bypass signal
+`-n`, `--nullok` (recommended) allows users who have not opted in to bypass signal
 authentication, does not apply if user tried to opt in but has a bad config
 
-`--nonull` requires all users to have properly setup signal authentication
+`-N`, `--nonull` requires all users to have properly setup signal authentication
 (high chance of user locking themselves out of ssh)
 
-`--nostrictpermissions` (not recommended) allows users to make bad choices about 
+`-p`, `--nostrictpermissions` (not recommended) allows users to make bad choices about 
 the permissions of their config files while still allowing them to use
 two-factor authentication
 
-`--silent` no warnings or errors will be written to the system log
+`-s`, `--silent` no warnings or errors will be written to the system log
 
-`--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
+`-d`, `--debug` print warnings and errors to the system log even if the `PAM_SILENT` flag is passed to PAM
 
-`--ignore-spaces` ignore spaces in user's response (allowed characters must not contain
+`-I`, `--ignore-spaces` ignore spaces in user's response (allowed characters must not contain
 a space)
 
-`--add-space-every [n]` add a space every n characters so users can more easily
+`-a`, `--add-space-every [n]` add a space every n characters so users can more easily
 read the token (implies `--ignore-spaces`)
 
-`--dbus` speed things up by using signal-cli's experimental system dbus interface (requires
+`-D`, `--dbus` speed things up by using signal-cli's experimental system dbus interface (requires
 signal-authenticator.service to be enabled)
 
-`--time-limit [n]` tokens expire after n seconds
+`-t`, `--time-limit [n]` tokens expire after n seconds. By default there is no
+time limit.
 
-`--allowed-chars [chars]` tokens will be made up of these characters only. The
-number of allowed characters must be a divisor of 256.
+`-C`, `--allowed-chars [chars]` tokens will be made up of these characters only. The
+number of allowed characters must be a divisor of 256. The default allowed
+characters are `abcdefghjkmnpqrstuvwxyz123456789`.
 
-`--token-len [n]` sets the length of 1-time tokens.
+`-T`, `--token-len [n]` sets the length of 1-time tokens. The default token
+length is 12.
 
 ## Setup
 

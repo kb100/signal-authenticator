@@ -69,7 +69,7 @@
 #endif
 
 #ifndef ALLOWED_CHARS_DEFAULT
-#define ALLOWED_CHARS_DEFAULT "abcdefghijkmnpqrstuvwxyz12345678"
+#define ALLOWED_CHARS_DEFAULT "abcdefghjkmnpqrstuvwxyz123456789"
 #endif
 #define ALLOWED_CHARS_LEN_DEFAULT ((sizeof(ALLOWED_CHARS_DEFAULT)/sizeof(ALLOWED_CHARS_DEFAULT[0]))-1)
 
