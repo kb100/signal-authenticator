@@ -49,13 +49,13 @@
 #define MAX_BUF_SIZE 1024
 #endif
 #ifndef TOKEN_LEN
-#define TOKEN_LEN 13
+#define TOKEN_LEN 12
 #endif
 #ifndef MAX_TOKEN_LEN
 #define MAX_TOKEN_LEN 256
 #endif
 #ifndef MINIMUM_BITS_OF_ENTROPY
-#define MINIMUM_BITS_OF_ENTROPY 65
+#define MINIMUM_BITS_OF_ENTROPY 40
 #endif
 #ifndef TOKEN_TIME_TO_EXPIRE
 #define TOKEN_TIME_TO_EXPIRE 90
@@ -581,6 +581,10 @@ int parse_args(pam_handle_t *pamh, Params *params, int argc, const char **argv)
 		} else if (!idx--) { /* add-space-every */
 			params->add_space_every = (size_t)atoi(optarg);
 			params->ignore_spaces = true;
+			if (!is_spacefree(params->allowed_chars)) {
+				errorx(pamh, NULL, "cannot add spaces if space is an allowed token character, aborting");
+				return PAM_AUTH_ERR;
+			}
 		} else if (!idx--) { /* time-limit */
 			params->time_limit = (time_t)atoi(optarg);
 			if (params->time_limit > 3600) {
