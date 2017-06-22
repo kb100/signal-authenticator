@@ -375,10 +375,9 @@ int build_signal_send_command(
 		const Params *params,
 		const char *sender,
 		char *recipients[MAX_RECIPIENTS],
-		const char *message,
-		const char *args[6 + MAX_RECIPIENTS + 1])
+		const char *args[4 + MAX_RECIPIENTS + 1])
 {
-	if (sender == NULL || recipients == NULL || message == NULL || args == NULL)
+	if (sender == NULL || recipients == NULL || args == NULL)
 		return PAM_AUTH_ERR;
 	int dbus_offset = params->use_dbus ? -1 : 0;
 	args[0] = "signal-cli";
@@ -389,17 +388,15 @@ int build_signal_send_command(
 		args[1] = "--dbus-system";
 	}
 	args[3 + dbus_offset] = "send";
-	args[4 + dbus_offset] = "-m";
-	args[5 + dbus_offset] = message;
 	for (size_t i = 0; i <  MAX_RECIPIENTS; i++) {
 		if (recipients[i] && recipients[i][0]) {
-			args[i + 6 + dbus_offset] = recipients[i];
+			args[i + 4 + dbus_offset] = recipients[i];
 		} else {
-			args[i + 6 + dbus_offset] = (const char *)NULL;
+			args[i + 4 + dbus_offset] = (const char *)NULL;
 			break;
 		}
 	}
-	args[6 + dbus_offset + MAX_RECIPIENTS] = (const char *)NULL;
+	args[4 + dbus_offset + MAX_RECIPIENTS] = (const char *)NULL;
 	return PAM_SUCCESS;
 }
 
@@ -419,37 +416,54 @@ int build_signal_receive_command(const char *username, const char *args[8])
 }
 
 int signal_cli(pam_handle_t *pamh, const Params *params,
-		struct passwd *drop_pw, char *const argv[])
+		struct passwd *drop_pw, char *const argv[],
+		const char *msg)
 {
 	pid_t c_pid;
 	int status;
+	int fd[2];
+
+	if (msg && pipe(fd) != 0) {
+		errorx(pamh, params, "failed to make pipe for sending message");
+		return PAM_AUTH_ERR;
+	}
 
 	c_pid = fork();
-
 	if (c_pid == 0) {
 		/* child */
-		if (drop_privileges(drop_pw) != PAM_SUCCESS )
-			exit(EXIT_FAILURE);
 		int fdnull = open("/dev/null", O_RDWR);
-		if (fdnull) {
-			bool failure = false;
-			failure |= dup2(fdnull, STDIN_FILENO) < 0;
-			failure |= dup2(fdnull, STDOUT_FILENO) < 0;
-			failure |= dup2(fdnull, STDERR_FILENO) < 0;
-			if (close(fdnull) != 0 || failure)
-				exit(EXIT_FAILURE);
-		} else {
+		if (!fdnull)
 			exit(EXIT_FAILURE);
-		}
+		else if (msg && close(fd[1]) != 0)
+			exit(EXIT_FAILURE);
+		else if (dup2(msg ? fd[0] : fdnull, STDIN_FILENO) < 0)
+			exit(EXIT_FAILURE);
+		else if (msg && close(fd[0]) != 0)
+			exit(EXIT_FAILURE);
+		else if (dup2(fdnull, STDOUT_FILENO) < 0)
+			exit(EXIT_FAILURE);
+		else if (dup2(fdnull, STDERR_FILENO) < 0)
+			exit(EXIT_FAILURE);
+		else if (close(fdnull) != 0)
+			exit(EXIT_FAILURE);
+		else if (drop_privileges(drop_pw) != PAM_SUCCESS)
+			exit(EXIT_FAILURE);
 		execv(SIGNAL_CLI, argv);
 	} else if (c_pid <  0) {
 		errorx(pamh, params, "failed to fork child for sending message");
 		return PAM_AUTH_ERR;
 	}
 	/* parent */
+	bool failure = false;
+	if (msg) {
+		failure |= close(fd[0]);
+		size_t n = strlen(msg);
+		failure |= write(fd[1], msg, n) != (ssize_t)n;
+		failure |= close(fd[1]);
+	}
 	wait(&status);
 
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
+	if (failure || !WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
 		return PAM_AUTH_ERR;
 
 	return PAM_SUCCESS;
@@ -746,8 +760,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		goto cleanup_then_return_auth_err;
 	}
 
-	const char *signal_send_args_arr[6 + MAX_RECIPIENTS + 1] = {0};
-	ret = build_signal_send_command(params, username, recipients_arr, message, signal_send_args_arr);
+	const char *signal_send_args_arr[4 + MAX_RECIPIENTS + 1] = {0};
+	ret = build_signal_send_command(params, username, recipients_arr, signal_send_args_arr);
 	if (ret != PAM_SUCCESS) {
 		errorx(pamh, params, "Failed to build signal send command");
 		goto cleanup_then_return_auth_err;
@@ -762,13 +776,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 		}
 
 		char * const * signal_receive_args = (char * const *)signal_receive_args_arr;
-		if (signal_cli(pamh, params, signal_pw, signal_receive_args) != PAM_SUCCESS) {
+		if (signal_cli(pamh, params, signal_pw, signal_receive_args, NULL) != PAM_SUCCESS) {
 			errorx(pamh, params, "signal-cli receive command failed");
 			goto cleanup_then_return_auth_err;
 		}
 	}
 
-	if (signal_cli(pamh, params, signal_pw, signal_send_args) != PAM_SUCCESS) {
+	if (signal_cli(pamh, params, signal_pw, signal_send_args, message) != PAM_SUCCESS) {
 		errorx(pamh, params, "signal-cli send command failed");
 		goto cleanup_then_return_auth_err;
 	}
