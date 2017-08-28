@@ -70,7 +70,7 @@ length is 12.
 Install [signal-cli](https://github.com/AsamK/signal-cli) and java:
 
 ```
-sudo apt-get update
+sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install default-jre
 export VERSION=0.5.6
 wget https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
@@ -81,7 +81,6 @@ sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/
 Get the build dependencies, download, make, and install signal-authenticator:
 
 ```
-sudo apt-get update
 sudo apt-get install build-essential libpam0g-dev
 git clone "https://github.com/kb100/signal-authenticator.git"
 # or fork your own copy and clone that
