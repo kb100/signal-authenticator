@@ -12,6 +12,17 @@ Contributors welcome! Report bugs to the issues page and please rebase to my
 master branch before submitting any pull requests.
 See the [contributing page](CONTRIBUTING.md) for details.
 
+- [Requirements](#requirements)
+- [Options](#options)
+- [Setup (basic)](#setup-basic)
+- [Setup (share signal number across multiple systems)](#setup-share-signal-number-across-multiple-systems)
+- [Setup (use the system dbus)](#setup-share-signal-number-across-multiple-systems)
+- [How can I require other combinations of authentication?](#how-can-i-require-other-combinations-of-authentication)
+- [Managing signal-authenticator manually](#managing-signal-authenticator-manually)
+- [Something didn't work?](#something-didnt-work)
+- [FAQ](FAQ.md)
+- [Contributing](CONTRIBUTING.md)
+
 ## Requirements
 
 - A phone with signal installed (for receiving 1-time tokens)
@@ -54,7 +65,7 @@ characters are `abcdefghjkmnpqrstuvwxyz123456789`.
 `-T`, `--token-len [n]` sets the length of 1-time tokens. The default token
 length is 12.
 
-## Setup
+## Setup (basic)
 
 Install [signal-cli](https://github.com/AsamK/signal-cli) and java:
 
