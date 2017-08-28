@@ -1,6 +1,6 @@
 # signal-authenticator
 
-PAM module for two-factor authentication through [signal](https://github.com/WhisperSystems/Signal-Android).
+PAM module for two-factor authentication through [Signal](https://github.com/WhisperSystems/Signal-Android).
 
 This project is in its ALPHA stage.
 It is HIGHLY EXPERIMENTAL,
@@ -15,7 +15,7 @@ See the [contributing page](CONTRIBUTING.md) for details.
 - [Requirements](#requirements)
 - [Options](#options)
 - [Setup (basic)](#setup-basic)
-- [Setup (share signal number across multiple systems)](#setup-share-signal-number-across-multiple-systems)
+- [Setup (share Signal number across multiple systems)](#setup-share-signal-number-across-multiple-systems)
 - [Setup (use the system dbus)](#setup-share-signal-number-across-multiple-systems)
 - [How can I require other combinations of authentication?](#how-can-i-require-other-combinations-of-authentication)
 - [Managing signal-authenticator manually](#managing-signal-authenticator-manually)
@@ -25,17 +25,17 @@ See the [contributing page](CONTRIBUTING.md) for details.
 
 ## Requirements
 
-- A phone with signal installed (for receiving 1-time tokens)
+- A phone with Signal installed (for receiving 1-time tokens)
 - A different phone number (using a google voice number is fine)
 - [signal-cli](https://github.com/AsamK/signal-cli) (version >= 0.5.3)
 - SSH server (assumed to be using publickey authentication already)
 
 ## Options
 
-`-n`, `--nullok` (recommended) allows users who have not opted in to bypass signal
+`-n`, `--nullok` (recommended) allows users who have not opted in to bypass Signal
 authentication, does not apply if user tried to opt in but has a bad config
 
-`-N`, `--nonull` requires all users to have properly setup signal authentication
+`-N`, `--nonull` requires all users to have properly setup Signal authentication
 (high chance of user locking themselves out of ssh)
 
 `-p`, `--nostrictpermissions` (not recommended) allows users to make bad choices about 
@@ -90,13 +90,13 @@ make
 sudo make install
 ```
 
-Next setup the signal-authenticator user's signal number:
+Next setup the signal-authenticator user's Signal number:
 
 ```
 sudo signal-auth-setup
 ```
 
-This will prompt you for the signal number (including plus sign and country code) 
+This will prompt you for the Signal number (including plus sign and country code) 
 the authenticator will use to SEND tokens, e.g. `+15551231234`.
 It is recommended and easy to create a google voice number for this step.
 DO NOT use the number that you want to RECEIVE tokens at for this step.
@@ -165,13 +165,13 @@ something like:
 [user ~]$ ssh user@localhost
 Enter passphrase for key '/home/user/.ssh/id_rsa': 
 Authenticated with partial success.
-(1-time code sent through signal!)
+(1-time code sent through Signal!)
 1-time code: mlfdolnvfb
 Last login: Wed Jun 29 16:36:29 2016 from 127.0.0.1
 [user ~]$ 
 ```
 
-## Setup (share signal number across multiple systems)
+## Setup (share Signal number across multiple systems)
 
 If you administrate multiple servers and would like to have
 signal-authenticator share a single real phone number for all of your servers, 
@@ -326,7 +326,7 @@ trust store, or reset a session from the server side, you may get fine control
 by switching to the signal-authenticator user with `sudo su
 signal-authenticator` and using signal-cli manually.
 If you want to completely start over with a fresh config, new keys, and
-reregister signal, you can use `sudo signal-auth-setup override`
+reregister Signal, you can use `sudo signal-auth-setup override`
 instead.
 
 ## Something didn't work?

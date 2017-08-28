@@ -75,15 +75,15 @@ Short answer: the tokens themselves NO, when the tokens are sent MAYBE.
 
 Long answer: even if you register with a Google voice number, Google cannot see
 your authentication tokens. The reason is that the tokens are end-to-end
-encrypted and transmitted through signal, not through SMS.
+encrypted and transmitted through Signal, not through SMS.
 One end is your phone, the other end is your computer.
 Neither end is your Google voice SMS inbox.
-The only reason a Google voice number is suggested is because signal
+The only reason a Google voice number is suggested is because Signal
 requires a "real" phone number in order to register, regardless of whether you are
 registering from a phone or computer.
-However, signal itself depends on Google play services in a way that Google
+However, Signal itself depends on Google play services in a way that Google
 may be able to tell when you receive an authentication token, but Google will 
 not be able to distinguish between this authentication token
-versus any other signal message that you receive on your phone without doing
+versus any other Signal message that you receive on your phone without doing
 some kind of traffic correlation attack.
 In any case, the tokens themselves are never seen by Google.
