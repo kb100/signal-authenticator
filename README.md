@@ -98,9 +98,14 @@ sudo signal-auth-setup
 This will prompt you for the Signal number (including plus sign and country code) 
 the authenticator will use to SEND tokens, e.g. `+15551231234`.
 It is recommended and easy to create a google voice number for this step.
+This step (re)registers the given number with Signal servers, so
 DO NOT use the number that you want to RECEIVE tokens at for this step.
 
-In order to require public key authentication + allow users to opt in to two-factor authentication,
+We give instructions assuming that public key authentication is already setup and that
+the desired authentication is public key AND Signal authentication.
+For other authentication combinations, see
+[How can I require other combinations of authentication?](#how-can-i-require-other-combinations-of-authentication).
+In order to require public key authentication and allow users to opt in to two-factor authentication,
 the important options for `/etc/ssh/sshd_config` are
 
 ```
@@ -154,6 +159,7 @@ To opt in, a user should run
 signal-auth-opt-in
 ```
 which will ask the user for the phone number to RECEIVE tokens at.
+There is no danger of messing up your already installed Signal at this step.
 This will create the necessary
 `.signal_authenticator` file in the user's home directory.
 
