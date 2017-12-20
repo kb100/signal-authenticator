@@ -47,7 +47,7 @@ install:
 	install -m 644 share/sample_pam_sshd $(SHARE_DIR)/$(SA)/sample_pam_sshd
 	install -m 644 share/sample_sshd_config $(SHARE_DIR)/$(SA)/sample_sshd_config
 	install -m 644 share/sample_pam_signal-authenticator $(SHARE_DIR)/$(SA)/sample_pam_signal-authenticator
-	install -v -m 644 --backup=t share/sample_pam_signal-authenticator $(PAMD_DIR)/signal-authenticator
+	[ -e $(PAMD_DIR)/signal-authenticator ] || install -v -m 644 share/sample_pam_signal-authenticator $(PAMD_DIR)/signal-authenticator
 	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
 	chown -R $(SIGNAL_USER):$(SIGNAL_USER) $(SIGNAL_HOME)
 
