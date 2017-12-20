@@ -11,6 +11,12 @@ Report bugs to the issues page and please rebase to my
 master branch before submitting any pull requests.
 See the [contributing page](CONTRIBUTING.md) for details.
 
+Releases are now signed with my GPG key with fingerprint
+
+```
+6E59 B8E5 A268 E206 A086  329E 507E 1F83 7C14 FFA9
+```
+
 - [Requirements](#requirements)
 - [Options](#options)
 - [Setup (basic)](#setup-basic)
