@@ -659,6 +659,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 {
 	int ret;
 	char allowed_chars[256] = {0};
+	char *recipients_arr[MAX_RECIPIENTS] = {0};
 
 	Params params_s = {
 		.nullok = !(flags & PAM_DISALLOW_NULL_AUTHTOK),
@@ -754,7 +755,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	}
 	const char *message = message_buf;
 
-	char *recipients_arr[MAX_RECIPIENTS] = {0};
 	if (parse_signal_recipients(config_filename, recipients_arr) != PAM_SUCCESS) {
 		errorx(pamh, params, "Failed to parse recipients from config");
 		goto cleanup_then_return_auth_err;
