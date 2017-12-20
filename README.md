@@ -138,7 +138,7 @@ and for `/etc/pam.d/sshd`
 
 Note: PAM config files are are more like scripts,
 they are executed in order so make sure you put
-those two lines exactly where the common-auth line used to be (near the top),
+the new include signal-authenticator line exactly where the common-auth line used to be (near the top),
 otherwise you may allow a user access before authenticating them (BAD!).
 
 Restart your sshd:

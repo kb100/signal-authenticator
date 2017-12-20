@@ -1,7 +1,7 @@
-# PAM configuration for the signal_authenticator service
+# PAM configuration for the signal-authenticator service
 #
 # The default config is preserved in 
-# /usr/local/share/signal-authenticator/sample_pam_signal_authenticator
+# /usr/local/share/signal-authenticator/sample_pam_signal-authenticator
 
 auth	required	pam_permit.so
 auth	required	pam_signal_authenticator.so --nullok
