@@ -3,12 +3,11 @@
 PAM module for two-factor authentication through [Signal](https://github.com/WhisperSystems/Signal-Android).
 
 This project is in its ALPHA stage.
-It is HIGHLY EXPERIMENTAL,
-has never been audited,
-and has been minimally tested. 
-DO NOT USE unless you understand the risks.
+It has been tested only by me for one year.
+It has not been professionally audited and you should not depend on it for your security at this time.
+The project is, however, ready for enthusiastic testers and contributors.
 
-Contributors welcome! Report bugs to the issues page and please rebase to my
+Report bugs to the issues page and please rebase to my
 master branch before submitting any pull requests.
 See the [contributing page](CONTRIBUTING.md) for details.
 
@@ -20,6 +19,7 @@ See the [contributing page](CONTRIBUTING.md) for details.
 - [How can I require other combinations of authentication?](#how-can-i-require-other-combinations-of-authentication)
 - [Managing signal-authenticator manually](#managing-signal-authenticator-manually)
 - [Something didn't work?](#something-didnt-work)
+- [Uninstalling](#uninstalling)
 - [FAQ](FAQ.md)
 - [Contributing](CONTRIBUTING.md)
 
@@ -127,8 +127,7 @@ and for `/etc/pam.d/sshd`
 # comment out this common-auth line, this will ask for a passphrase even though
 # we have disabled PasswordAuthentication
 # @include common-auth
-auth    required        pam_permit.so 
-auth    required        pam_signal_authenticator.so --nullok
+@include signal-authenticator
 ```
 
 Note: PAM config files are are more like scripts,
@@ -253,9 +252,9 @@ from what was described above are shown.
 
 `/etc/pam.d/sshd`
 ```
-#@include common-auth
-auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so --nullok 
+# comment out this common-auth line
+# @include common-auth
+@include signal-authenticator
 ```
 
 `/etc/ssh/sshd_config`
@@ -268,8 +267,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 `/etc/pam.d/sshd`
 ```
 @include common-auth
-#auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so --nullok 
+@include signal-authenticator
 ```
 
 `/etc/ssh/sshd_config`
@@ -282,8 +280,7 @@ AuthenticationMethods publickey,keyboard-interactive:pam
 `/etc/pam.d/sshd`
 ```
 @include common-auth
-#auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so --nullok 
+@include signal-authenticator
 ```
 
 `/etc/ssh/sshd_config`
@@ -298,8 +295,7 @@ AuthenticationMethods publickey keyboard-interactive:pam
 `/etc/pam.d/sshd`
 ```
 @include common-auth
-#auth	required	pam_permit.so
-auth	required	pam_signal_authenticator.so --nullok 
+@include signal-authenticator
 ```
 
 `/etc/ssh/sshd_config`
@@ -343,3 +339,28 @@ If your sshd config has `SyslogFacility AUTH` (this is the default on
 debian, e.g.) then the right log is probably `/var/log/auth`, 
 but it may also be `/var/log/syslog` depending on your system.
 You can also access logs using `sudo journalctl` if you are using systemd.
+
+## Uninstalling
+
+If you want to uninstall signal-authenticator, first remove it from your pam
+configuration file `/etc/pam.d/sshd` and sshd
+configuration file `/etc/ssh/sshd_config`.
+
+To remove signal-authenticator but leave configuration files (e.g. if you plan
+on reinstalling shortly), from the repository directory run
+
+```
+sudo make uninstall
+```
+
+To remove signal-authenticator, including configuration files (pam
+configuration, signal-authenticator home directory, etc.) run
+
+```
+sudo make purge
+```
+
+Note, this operation deletes your signal-authenticator's private keys.
+If you reinstall, you will have to register with Signal servers again and 
+new private keys will be generated. Any previous users will receive key change 
+notices the next time they receive a one-time token from your authenticator.

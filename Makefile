@@ -20,6 +20,9 @@ endif
 ifndef SHARE_DIR
 SHARE_DIR = $(PREFIX)/share
 endif
+ifndef PAMD_DIR
+PAMD_DIR = "/etc/pam.d"
+endif
 SIGNAL_USER = "signal-authenticator"
 PSA = pam_signal_authenticator
 SA = signal-authenticator
@@ -43,17 +46,27 @@ install:
 	install -m 644 share/signal-authenticator.service $(SHARE_DIR)/$(SA)/signal-authenticator.service
 	install -m 644 share/sample_pam_sshd $(SHARE_DIR)/$(SA)/sample_pam_sshd
 	install -m 644 share/sample_sshd_config $(SHARE_DIR)/$(SA)/sample_sshd_config
+	install -m 644 share/sample_pam_signal-authenticator $(SHARE_DIR)/$(SA)/sample_pam_signal-authenticator
+	install -v -m 644 --backup=t share/sample_pam_signal-authenticator $(PAMD_DIR)/signal-authenticator
 	adduser --system --quiet --group --shell $(SIGNAL_SHELL) --home $(SIGNAL_HOME) $(SIGNAL_USER)
+	chown -R $(SIGNAL_USER):$(SIGNAL_USER) $(SIGNAL_HOME)
 
 uninstall:
 	rm -f $(LIB_SECURITY_DIR)/$(PSA).so
 	rm -f $(PREFIX)/bin/signal-auth-setup
 	rm -f $(PREFIX)/bin/signal-auth-link
 	rm -f $(PREFIX)/bin/signal-auth-opt-in
-	rm -rf $(SHARE_DIR)/$(SA)
+	rm -f $(PAMD_DIR)/signal-authenticator
+	rm --preserve-root -rf $(SHARE_DIR)/$(SA)
 	deluser --system --quiet $(SIGNAL_USER)
+
+purge: uninstall
+	rm --preserve-root -rf $(SIGNAL_HOME)
+	# remove backups of the pam config file that may be present after
+	# multiple installations
+	rm -f $(PAMD_DIR)/signal-authenticator.~*
 
 clean:
 	rm -f $(PSA).so
 
-.PHONY: warn all clean install uninstall
+.PHONY: warn all clean install uninstall purge
