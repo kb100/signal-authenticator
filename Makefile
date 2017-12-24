@@ -2,27 +2,13 @@ CC = gcc
 CFLAGS = -x c -D_POSIX_C_SOURCE -D_DEFAULT_SOURCE -std=c99
 CWARN_FLAGS = -Wall -Wextra -Wno-long-long -Wno-variadic-macros
 CSHAREDLIB_FLAGS = -fPIC -DPIC -shared -rdynamic
-ifndef LIB_SECURITY_DIR
-LIB_SECURITY_DIR = "/lib/x86_64-linux-gnu/security"
-endif
-ifndef SIGNAL_CLI
-SIGNAL_CLI = "/usr/local/bin/signal-cli"
-endif
-ifndef SIGNAL_SHELL
-SIGNAL_SHELL = "/bin/sh"
-endif
-ifndef SIGNAL_HOME
-SIGNAL_HOME = "/var/lib/signal-authenticator"
-endif
-ifndef PREFIX
-PREFIX = "/usr/local"
-endif
-ifndef SHARE_DIR
-SHARE_DIR = $(PREFIX)/share
-endif
-ifndef PAMD_DIR
-PAMD_DIR = "/etc/pam.d"
-endif
+LIB_SECURITY_DIR ?= "/lib/x86_64-linux-gnu/security"
+SIGNAL_CLI ?= "/usr/local/bin/signal-cli"
+SIGNAL_SHELL ?= "/bin/sh"
+SIGNAL_HOME ?= "/var/lib/signal-authenticator"
+PREFIX ?= "/usr/local"
+SHARE_DIR ?= $(PREFIX)/share
+PAMD_DIR ?= "/etc/pam.d"
 SIGNAL_USER = "signal-authenticator"
 PSA = pam_signal_authenticator
 SA = signal-authenticator
