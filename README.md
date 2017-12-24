@@ -38,6 +38,9 @@ Releases are now signed with my GPG key with fingerprint
 
 ## Options
 
+These are options that you can pass as arguments to
+`pam_signal_authenticator.so` in your `/etc/pam.d/signal-authenticator` file.
+
 `-n`, `--nullok` (recommended) allows users who have not opted in to bypass Signal
 authentication, does not apply if user tried to opt in but has a bad config
 
@@ -140,6 +143,11 @@ Note: PAM config files are are more like scripts,
 they are executed in order so make sure you put
 the new include signal-authenticator line exactly where the common-auth line used to be (near the top),
 otherwise you may allow a user access before authenticating them (BAD!).
+
+You may add options in `/etc/pam.d/signal-authenticator` to your liking at this
+time.
+Sane defaults are used and you do not need to change any options right now if you
+just want to get it working first.
 
 Restart your sshd:
 
