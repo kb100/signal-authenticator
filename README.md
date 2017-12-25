@@ -76,6 +76,20 @@ length is 12.
 
 ## Setup (basic)
 
+### Overview
+
+- Install signal-cli and java
+- Install build dependencies, download, make, and install signal-authenticator
+- Setup the system signal user with `sudo signal-auth-setup`
+- Modify `/etc/ssh/sshd_config`
+- Modify `/etc/pam.d/sshd`
+- (Optional) modify `/etc/pam.d/signal-authenticator` to change options
+- Restart ssh server
+- Opt-in a user with `signal-auth-opt-in`
+- Test it!
+
+### The details
+
 Install [signal-cli](https://github.com/AsamK/signal-cli) and java:
 
 ```
@@ -149,7 +163,9 @@ time.
 Sane defaults are used and you do not need to change any options right now if you
 just want to get it working first.
 
-Restart your sshd:
+Restart your sshd (for future reference, this is only needed after
+modifying `/etc/ssh/sshd_config`, modifications to the PAM files take effect
+immediately):
 
 ```
 sudo systemctl restart sshd
